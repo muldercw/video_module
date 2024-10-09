@@ -29,43 +29,43 @@ auth = ClarifaiAuthHelper.from_streamlit(st)
 stub = create_stub(auth)
 userDataObject = auth.get_user_app_id_proto()
 
-st.title("Clarifai Input and Video Frame Processing")
+st.title("Video Processing & Monitoring")
 
 # Form to get user input for the number of inputs to display
-with st.form(key="data-inputs"):
-    mtotal = st.number_input("Select number of inputs to view in a table:", min_value=5, max_value=100)
-    submitted = st.form_submit_button('Submit')
+# with st.form(key="data-inputs"):
+#     mtotal = st.number_input("Select number of inputs to view in a table:", min_value=5, max_value=100)
+#     submitted = st.form_submit_button('Submit')
 
-if submitted:
-    if mtotal is None or mtotal == 0:
-        st.warning("Number of inputs must be provided.")
-        st.stop()
-    else:
-        st.write(f"Number of inputs in table will be: {mtotal}")
+# if submitted:
+#     if mtotal is None or mtotal == 0:
+#         st.warning("Number of inputs must be provided.")
+#         st.stop()
+#     else:
+#         st.write(f"Number of inputs in table will be: {mtotal}")
 
-    # Retrieve inputs from Clarifai app
-    input_obj = User(user_id=userDataObject.user_id).app(app_id=userDataObject.app_id).inputs()
-    all_inputs = input_obj.list_inputs()
+#     # Retrieve inputs from Clarifai app
+#     input_obj = User(user_id=userDataObject.user_id).app(app_id=userDataObject.app_id).inputs()
+#     all_inputs = input_obj.list_inputs()
 
-    # Check if there are enough inputs to display
-    if len(all_inputs) < mtotal:
-        raise Exception(f"Number of inputs is less than {mtotal}. Please add more inputs or reduce the inputs to be displayed!")
+#     # Check if there are enough inputs to display
+#     if len(all_inputs) < mtotal:
+#         raise Exception(f"Number of inputs is less than {mtotal}. Please add more inputs or reduce the inputs to be displayed!")
 
-    else:
-        data = []
-        # Collect input data along with metadata
-        for inp in range(mtotal):
-            data.append({
-                "id": all_inputs[inp].id,
-                "data_url": all_inputs[inp].data.image.url,
-                "status": all_inputs[inp].status.description,
-                "created_at": timestamp_pb2.Timestamp.ToDatetime(all_inputs[inp].created_at),
-                "modified_at": timestamp_pb2.Timestamp.ToDatetime(all_inputs[inp].modified_at),
-                "metadata": json_format.MessageToDict(all_inputs[inp].data.metadata),
-            })
+#     else:
+#         data = []
+#         # Collect input data along with metadata
+#         for inp in range(mtotal):
+#             data.append({
+#                 "id": all_inputs[inp].id,
+#                 "data_url": all_inputs[inp].data.image.url,
+#                 "status": all_inputs[inp].status.description,
+#                 "created_at": timestamp_pb2.Timestamp.ToDatetime(all_inputs[inp].created_at),
+#                 "modified_at": timestamp_pb2.Timestamp.ToDatetime(all_inputs[inp].modified_at),
+#                 "metadata": json_format.MessageToDict(all_inputs[inp].data.metadata),
+#             })
 
-        # Display data as a table
-        st.dataframe(data)
+#         # Display data as a table
+#         st.dataframe(data)
 
 # Section for playing and processing video frames
 st.subheader("Video Frame Processing")
@@ -93,7 +93,7 @@ else:
                                value="http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4\nhttp://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4")
 
     # Slider for frame skip selection
-    frame_skip = st.slider("Select how many frames to skip:", min_value=1, max_value=10, value=2)
+    frame_skip = st.slider("Select how many frames to skip:", min_value=2, max_value=20, value=1)
 
     # Create a placeholder for model selections
     model_options = st.multiselect("Select a model for each video (in order of URLs):", ("Model A", "Model B"))
