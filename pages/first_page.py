@@ -1,5 +1,7 @@
 import streamlit as st
 import cv2
+import time
+from collections import deque
 from clarifai.client.auth import create_stub
 from clarifai.client.auth.helper import ClarifaiAuthHelper
 from clarifai.client.user import User
@@ -65,8 +67,13 @@ if st.button("Process Video"):
         if not video_capture.isOpened():
             st.error("Error: Could not open video.")
         else:
-            frame_count = 0
             frame_placeholder = st.empty()  # Placeholder for the video frame
+            frame_rate = int(video_capture.get(cv2.CAP_PROP_FPS))
+            buffer_duration = 2  # Buffer for 2 seconds
+            buffer_size = frame_rate * buffer_duration  # Calculate buffer size based on FPS and duration
+            frame_buffer = deque(maxlen=buffer_size)  # Buffer to hold the last N frames
+
+            frame_count = 0  # Initialize frame count
 
             # Loop through the video frames
             while video_capture.isOpened():
@@ -76,7 +83,7 @@ if st.button("Process Video"):
                     break  # Stop the loop when no more frames
 
                 # Only process every second frame
-                if frame_count % 2 == 0:
+                if frame_count % frame_rate == 0:
                     # Add a text box to the frame
                     frame = cv2.putText(frame, "Processed Frame", (50, 50), cv2.FONT_HERSHEY_SIMPLEX,
                                         1, (255, 0, 0), 2, cv2.LINE_AA)
@@ -84,10 +91,17 @@ if st.button("Process Video"):
                     # Convert the frame from BGR to RGB (for displaying in Streamlit)
                     rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-                    # Update the placeholder with the current frame
-                    frame_placeholder.image(rgb_frame)
+                    # Add the frame to the buffer
+                    frame_buffer.append(rgb_frame)
+
+                    # Display the latest buffered frame
+                    if len(frame_buffer) > 0:
+                        frame_placeholder.image(frame_buffer[-1])  # Show the latest frame in the buffer
 
                 frame_count += 1
+
+                # Sleep dynamically based on the frame rate for smooth playback
+                time.sleep(1 / frame_rate)
 
             video_capture.release()
 
