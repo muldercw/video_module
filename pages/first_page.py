@@ -15,9 +15,22 @@ from google.protobuf import json_format, timestamp_pb2
 def list_models():
     app_obj = App(user_id=userDataObject.user_id, app_id=userDataObject.app_id)
     all_models = list(app_obj.list_models())
-    return [model.id for model in all_models]
+    usermodels = []
+    for model in all_models:
+        _umod = {"Name": model.id, "URL": model.url, "type": "User"}
+        usermodels.append(_umod)
+    return usermodels + list_community_models()
+
+def list_community_models():
+    predefined_model_urls = [{"Name": "General-Image-Detection", "URL": "https://clarifai.com/clarifai/main/models/general-image-detection", "type":"Community"},
+                             {"Name": "Face Detection", "URL": "https://clarifai.com/clarifai/main/models/face-detection", "type":"Community"}]
+    return predefined_model_urls
+
 
 def run_model_inference(frame, model_option):
+    _model = Model(model_id=model_option)
+    _model_versions = list(_model.list_versions())
+
     # Simulate model inference
     return cv2.putText(frame.copy(), model_option, (50, 100), cv2.FONT_HERSHEY_SIMPLEX,
                            1, (0, 255, 0), 2, cv2.LINE_AA), None
@@ -67,8 +80,10 @@ else:
     url_list = [url.strip() for url in video_urls.split('\n') if url.strip()]
     model_options = []
     for idx, url in enumerate(url_list):
-        model_option = st.selectbox(f"Select a model for Video {idx+1}:", available_models, key=f"model_{idx}")
-        model_options.append(model_option)
+        model_names = [model["Name"] for model in available_models]
+        selected_model_name = st.selectbox(f"Select a model for Video {idx+1}:", model_names, key=f"model_{idx}")
+        selected_model = next(model for model in available_models if model["Name"] == selected_model_name)
+        model_options.append(selected_model)
 
     if st.button("Process Videos"):
         if video_urls and len(model_options) == len(url_list):
