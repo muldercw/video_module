@@ -88,9 +88,10 @@ if video_option == "Webcam":
         st.image(rgb_frame, caption="Processed Webcam Frame")
 
 else:
-    # Input for multiple video URLs
-    video_urls = st.text_area("Enter video URLs (one per line):")
-    
+    # Input for multiple video URLs with prepopulated example URLs
+    video_urls = st.text_area("Enter video URLs (one per line):",
+                               value="http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4\nhttp://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4")
+
     # Slider for frame skip selection
     frame_skip = st.slider("Select how many frames to skip:", min_value=1, max_value=10, value=2)
 
