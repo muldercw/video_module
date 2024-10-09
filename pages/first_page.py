@@ -66,6 +66,8 @@ if st.button("Process Video"):
             st.error("Error: Could not open video.")
         else:
             frame_count = 0
+            frame_placeholder = st.empty()  # Placeholder for the video frame
+
             # Loop through the video frames
             while video_capture.isOpened():
                 ret, frame = video_capture.read()
@@ -81,9 +83,9 @@ if st.button("Process Video"):
 
                     # Convert the frame from BGR to RGB (for displaying in Streamlit)
                     rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                    
-                    # Display the frame in Streamlit
-                    st.image(rgb_frame)
+
+                    # Update the placeholder with the current frame
+                    frame_placeholder.image(rgb_frame)
 
                 frame_count += 1
 
