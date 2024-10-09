@@ -10,6 +10,18 @@ from clarifai.client.user import User
 from clarifai.modules.css import ClarifaiStreamlitCSS
 from google.protobuf import json_format, timestamp_pb2
 
+# Placeholder function for model inference (you can replace this with your actual model)
+def run_model_inference(frame, model_option):
+    # Simulating model inference; replace this with actual model code
+    # For now, we will just return the frame with a label indicating which model was used
+    if model_option == "Model A":
+        return cv2.putText(frame.copy(), "Model A Processed", (50, 100), cv2.FONT_HERSHEY_SIMPLEX,
+                           1, (0, 255, 0), 2, cv2.LINE_AA)
+    elif model_option == "Model B":
+        return cv2.putText(frame.copy(), "Model B Processed", (50, 100), cv2.FONT_HERSHEY_SIMPLEX,
+                           1, (0, 0, 255), 2, cv2.LINE_AA)
+    return frame
+
 st.set_page_config(layout="wide")
 ClarifaiStreamlitCSS.insert_default_css(st)
 
@@ -22,8 +34,7 @@ st.title("Clarifai Input and Video Frame Processing")
 
 # Form to get user input for the number of inputs to display
 with st.form(key="data-inputs"):
-    mtotal = st.number_input(
-        "Select number of inputs to view in a table:", min_value=5, max_value=100)
+    mtotal = st.number_input("Select number of inputs to view in a table:", min_value=5, max_value=100)
     submitted = st.form_submit_button('Submit')
 
 if submitted:
@@ -84,6 +95,9 @@ else:
     # Slider for frame skip selection
     frame_skip = st.slider("Select how many frames to skip:", min_value=1, max_value=10, value=2)
 
+    # Select model for inference
+    model_option = st.selectbox("Select a model for inference:", ("Model A", "Model B"))
+
     if st.button("Process Videos"):
         if video_urls:
             # Split the input into a list of URLs
@@ -115,12 +129,11 @@ else:
 
                     # Only process frames based on the user-selected frame skip
                     if frame_count % frame_skip == 0:
-                        # Add a text box to the frame
-                        frame = cv2.putText(frame, "Processed Frame", (50, 50), cv2.FONT_HERSHEY_SIMPLEX,
-                                            1, (255, 0, 0), 2, cv2.LINE_AA)
+                        # Run inference on the frame
+                        processed_frame = run_model_inference(frame, model_option)
 
                         # Convert the frame from BGR to RGB (for displaying in Streamlit)
-                        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                        rgb_frame = cv2.cvtColor(processed_frame, cv2.COLOR_BGR2RGB)
 
                         # Add the frame to the buffer
                         video_buffers[index].append(rgb_frame)
