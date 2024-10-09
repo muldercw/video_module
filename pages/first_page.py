@@ -7,6 +7,7 @@ from collections import deque
 from clarifai.client.auth import create_stub
 from clarifai.client.auth.helper import ClarifaiAuthHelper
 from clarifai.client.user import User
+from clarifai.client.model import Model
 from clarifai.client.app import App
 from clarifai.modules.css import ClarifaiStreamlitCSS
 from google.protobuf import json_format, timestamp_pb2
@@ -16,11 +17,37 @@ def list_models():
     all_models = list(app_obj.list_models())
     return [model.id for model in all_models]
 
-# Placeholder function for model inference (you can replace this with your actual model)
+
 def run_model_inference(frame, model_option):
-    # Simulating model inference; replace this with actual model code
-    return cv2.putText(frame.copy(), model_option, (50, 100), cv2.FONT_HERSHEY_SIMPLEX,
-                           1, (0, 255, 0), 2, cv2.LINE_AA)
+    # will return frame with detections as well as the json response from the model
+  model_url = "https://clarifai.com/clarifai/main/models/face-detection"
+  detector_model = Model(
+      url=model_url)
+  prediction_response = detector_model.predict_by_bytes(frame, input_type="image")
+  regions = prediction_response.outputs[0].data.regions
+
+  for region in regions:
+      # Accessing and rounding the bounding box values
+      top_row = round(region.region_info.bounding_box.top_row, 3)
+      left_col = round(region.region_info.bounding_box.left_col, 3)
+      bottom_row = round(region.region_info.bounding_box.bottom_row, 3)
+      right_col = round(region.region_info.bounding_box.right_col, 3)
+
+      for concept in region.data.concepts:
+          # Accessing and rounding the concept value
+          name = concept.name
+          value = round(concept.value, 4)
+
+          print(
+              (f"{name}: {value} BBox: {top_row}, {left_col}, {bottom_row}, {right_col}")
+          )
+          frame = cv2.rectangle(frame, (int(left_col * frame.shape[1]), int(top_row * frame.shape[0])),
+                                (int(right_col * frame.shape[1]), int(bottom_row * frame.shape[0])), (0, 255, 0), 2)
+
+    # Simulating model inference; replace this with actua
+  #return cv2.putText(frame.copy(), model_option, (50, 100), cv2.FONT_HERSHEY_SIMPLEX,
+  #                         1, (0, 255, 0), 2, cv2.LINE_AA)
+  return frame, prediction_response
     
 
 st.set_page_config(layout="wide")
@@ -135,7 +162,7 @@ else:
                     # Only process frames based on the user-selected frame skip
                     if frame_count % frame_skip == 0:
                         # Run inference on the frame with the selected model
-                        processed_frame = run_model_inference(frame, model_option)
+                        processed_frame, model_respose = run_model_inference(frame, model_option)
 
                         # Convert the frame from BGR to RGB (for displaying in Streamlit)
                         rgb_frame = cv2.cvtColor(processed_frame, cv2.COLOR_BGR2RGB)
