@@ -62,39 +62,39 @@ def run_model_inference(frame, model_option):
               print(
                   (f"{name}: {value} BBox: {top_row}, {left_col}, {bottom_row}, {right_col}")
               )
-              cv2.rectangle(_frame, (int(left_col * width), int(top_row * length)),
-                            (int(right_col * width), int(bottom_row * length)), (0, 255, 0), 2)
-              cv2.putText(_frame, f"{name}: {value}", (int(left_col * width), int(top_row * length - 10)),
-                          cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2, cv2.LINE_AA)
+              # cv2.rectangle(_frame, (int(left_col * width), int(top_row * length)),
+              #               (int(right_col * width), int(bottom_row * length)), (0, 255, 0), 2)
+              # cv2.putText(_frame, f"{name}: {value}", (int(left_col * width), int(top_row * length - 10)),
+              #             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2, cv2.LINE_AA)
 
               cv2.rectangle(_frame, (int(left_col * frame.shape[1]), int(top_row * frame.shape[0])),
                                   (int(right_col * frame.shape[1]), int(bottom_row * frame.shape[0])), (0, 255, 0), 2)
-              # Draw corners instead of full rectangle
-              corner_length = 10  # Length of the corner lines
+              # # Draw corners instead of full rectangle
+              # corner_length = 10  # Length of the corner lines
 
-              # Top-left corner
-              cv2.line(_frame, (int(left_col * _frame.shape[1]), int(top_row * _frame.shape[0])),
-                    (int(left_col * _frame.shape[1]) + corner_length, int(top_row * _frame.shape[0])), (0, 255, 0), 2)
-              cv2.line(_frame, (int(left_col * _frame.shape[1]), int(top_row * _frame.shape[0])),
-                    (int(left_col * _frame.shape[1]), int(top_row * _frame.shape[0]) + corner_length), (0, 255, 0), 2)
+              # # Top-left corner
+              # cv2.line(_frame, (int(left_col * _frame.shape[1]), int(top_row * _frame.shape[0])),
+              #       (int(left_col * _frame.shape[1]) + corner_length, int(top_row * _frame.shape[0])), (0, 255, 0), 2)
+              # cv2.line(_frame, (int(left_col * _frame.shape[1]), int(top_row * _frame.shape[0])),
+              #       (int(left_col * _frame.shape[1]), int(top_row * _frame.shape[0]) + corner_length), (0, 255, 0), 2)
 
-              # Top-right corner
-              cv2.line(_frame, (int(right_col * _frame.shape[1]), int(top_row * _frame.shape[0])),
-                    (int(right_col * _frame.shape[1]) - corner_length, int(top_row * _frame.shape[0])), (0, 255, 0), 2)
-              cv2.line(_frame, (int(right_col * _frame.shape[1]), int(top_row * _frame.shape[0])),
-                    (int(right_col * _frame.shape[1]), int(top_row * _frame.shape[0]) + corner_length), (0, 255, 0), 2)
+              # # Top-right corner
+              # cv2.line(_frame, (int(right_col * _frame.shape[1]), int(top_row * _frame.shape[0])),
+              #       (int(right_col * _frame.shape[1]) - corner_length, int(top_row * _frame.shape[0])), (0, 255, 0), 2)
+              # cv2.line(_frame, (int(right_col * _frame.shape[1]), int(top_row * _frame.shape[0])),
+              #       (int(right_col * _frame.shape[1]), int(top_row * _frame.shape[0]) + corner_length), (0, 255, 0), 2)
 
-              # Bottom-left corner
-              cv2.line(_frame, (int(left_col * _frame.shape[1]), int(bottom_row * _frame.shape[0])),
-                    (int(left_col * _frame.shape[1]) + corner_length, int(bottom_row * _frame.shape[0])), (0, 255, 0), 2)
-              cv2.line(_frame, (int(left_col * _frame.shape[1]), int(bottom_row * _frame.shape[0])),
-                    (int(left_col * _frame.shape[1]), int(bottom_row * _frame.shape[0]) - corner_length), (0, 255, 0), 2)
+              # # Bottom-left corner
+              # cv2.line(_frame, (int(left_col * _frame.shape[1]), int(bottom_row * _frame.shape[0])),
+              #       (int(left_col * _frame.shape[1]) + corner_length, int(bottom_row * _frame.shape[0])), (0, 255, 0), 2)
+              # cv2.line(_frame, (int(left_col * _frame.shape[1]), int(bottom_row * _frame.shape[0])),
+              #       (int(left_col * _frame.shape[1]), int(bottom_row * _frame.shape[0]) - corner_length), (0, 255, 0), 2)
 
-              # Bottom-right corner
-              cv2.line(_frame, (int(right_col * _frame.shape[1]), int(bottom_row * _frame.shape[0])),
-                    (int(right_col * _frame.shape[1]) - corner_length, int(bottom_row * _frame.shape[0])), (0, 255, 0), 2)
-              cv2.line(_frame, (int(right_col * _frame.shape[1]), int(bottom_row * _frame.shape[0])),
-                    (int(right_col * _frame.shape[1]), int(bottom_row * _frame.shape[0]) - corner_length), (0, 255, 0), 2)
+              # # Bottom-right corner
+              # cv2.line(_frame, (int(right_col * _frame.shape[1]), int(bottom_row * _frame.shape[0])),
+              #       (int(right_col * _frame.shape[1]) - corner_length, int(bottom_row * _frame.shape[0])), (0, 255, 0), 2)
+              # cv2.line(_frame, (int(right_col * _frame.shape[1]), int(bottom_row * _frame.shape[0])),
+              #       (int(right_col * _frame.shape[1]), int(bottom_row * _frame.shape[0]) - corner_length), (0, 255, 0), 2)
       return _frame, prediction_response
     except Exception as e:
       cv2.putText(_frame, f"{str(e)}", (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
