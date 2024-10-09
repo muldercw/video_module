@@ -31,74 +31,75 @@ def list_community_models():
     
 def run_model_inference(frame, model_option):
     _frame = frame.copy()
-    try:
+    prediction_response = None
+    # try:
         
-      frame_bytes = cv2.imencode('.jpg', _frame)[1].tobytes()
-      #_model = Model(model_id=model_option['Name'])
-      #_model_versions = list(_model.list_versions())
+    #   frame_bytes = cv2.imencode('.jpg', _frame)[1].tobytes()
+    #   #_model = Model(model_id=model_option['Name'])
+    #   #_model_versions = list(_model.list_versions())
 
-      #model_url = "https://clarifai.com/clarifai/main/models/face-detection"
-      model_url = model_option['URL']
-      detector_model = Model(url = model_url)
-      #prediction_response = f"Frame type is: {type(_frame)} and model is: {model_option['Name']} and model URL is: {model_option['URL']}"
-      #cv2.putText(_frame, prediction_response, (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
-      prediction_response = detector_model.predict_by_bytes(frame_bytes, input_type="image")
-      length, width = _frame.shape[:2]
+    #   #model_url = "https://clarifai.com/clarifai/main/models/face-detection"
+    #   model_url = model_option['URL']
+    #   detector_model = Model(url = model_url)
+    #   #prediction_response = f"Frame type is: {type(_frame)} and model is: {model_option['Name']} and model URL is: {model_option['URL']}"
+    #   #cv2.putText(_frame, prediction_response, (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+    #   prediction_response = detector_model.predict_by_bytes(frame_bytes, input_type="image")
       
-      regions = prediction_response.outputs[0].data.regions
+    #   regions = prediction_response.outputs[0].data.regions
 
-      for region in regions:
-          # Accessing and rounding the bounding box values
-          top_row = round(region.region_info.bounding_box.top_row, 3)
-          left_col = round(region.region_info.bounding_box.left_col, 3)
-          bottom_row = round(region.region_info.bounding_box.bottom_row, 3)
-          right_col = round(region.region_info.bounding_box.right_col, 3)
+    #   for region in regions:
+    #       # Accessing and rounding the bounding box values
+    #       top_row = round(region.region_info.bounding_box.top_row, 3)
+    #       left_col = round(region.region_info.bounding_box.left_col, 3)
+    #       bottom_row = round(region.region_info.bounding_box.bottom_row, 3)
+    #       right_col = round(region.region_info.bounding_box.right_col, 3)
 
-          for concept in region.data.concepts:
-              # Accessing and rounding the concept value
-              name = concept.name
-              value = round(concept.value, 4)
+    #       for concept in region.data.concepts:
+    #           # Accessing and rounding the concept value
+    #           name = concept.name
+    #           value = round(concept.value, 4)
 
-              print(
-                  (f"{name}: {value} BBox: {top_row}, {left_col}, {bottom_row}, {right_col}")
-              )
-              # cv2.rectangle(_frame, (int(left_col * width), int(top_row * length)),
-              #               (int(right_col * width), int(bottom_row * length)), (0, 255, 0), 2)
-              # cv2.putText(_frame, f"{name}: {value}", (int(left_col * width), int(top_row * length - 10)),
-              #             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2, cv2.LINE_AA)
+    #           print(
+    #               (f"{name}: {value} BBox: {top_row}, {left_col}, {bottom_row}, {right_col}")
+    #           )
+    #           # cv2.rectangle(_frame, (int(left_col * width), int(top_row * length)),
+    #           #               (int(right_col * width), int(bottom_row * length)), (0, 255, 0), 2)
+    #           # cv2.putText(_frame, f"{name}: {value}", (int(left_col * width), int(top_row * length - 10)),
+    #           #             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2, cv2.LINE_AA)
 
-              cv2.rectangle(_frame, (int(left_col * frame.shape[1]), int(top_row * frame.shape[0])),
-                                  (int(right_col * frame.shape[1]), int(bottom_row * frame.shape[0])), (0, 255, 0), 2)
-              # # Draw corners instead of full rectangle
-              # corner_length = 10  # Length of the corner lines
+    #           cv2.rectangle(_frame, (int(left_col * frame.shape[1]), int(top_row * frame.shape[0])),
+    #                               (int(right_col * frame.shape[1]), int(bottom_row * frame.shape[0])), (0, 255, 0), 2)
+    #           # # Draw corners instead of full rectangle
+    #           # corner_length = 10  # Length of the corner lines
 
-              # # Top-left corner
-              # cv2.line(_frame, (int(left_col * _frame.shape[1]), int(top_row * _frame.shape[0])),
-              #       (int(left_col * _frame.shape[1]) + corner_length, int(top_row * _frame.shape[0])), (0, 255, 0), 2)
-              # cv2.line(_frame, (int(left_col * _frame.shape[1]), int(top_row * _frame.shape[0])),
-              #       (int(left_col * _frame.shape[1]), int(top_row * _frame.shape[0]) + corner_length), (0, 255, 0), 2)
+    #           # # Top-left corner
+    #           # cv2.line(_frame, (int(left_col * _frame.shape[1]), int(top_row * _frame.shape[0])),
+    #           #       (int(left_col * _frame.shape[1]) + corner_length, int(top_row * _frame.shape[0])), (0, 255, 0), 2)
+    #           # cv2.line(_frame, (int(left_col * _frame.shape[1]), int(top_row * _frame.shape[0])),
+    #           #       (int(left_col * _frame.shape[1]), int(top_row * _frame.shape[0]) + corner_length), (0, 255, 0), 2)
 
-              # # Top-right corner
-              # cv2.line(_frame, (int(right_col * _frame.shape[1]), int(top_row * _frame.shape[0])),
-              #       (int(right_col * _frame.shape[1]) - corner_length, int(top_row * _frame.shape[0])), (0, 255, 0), 2)
-              # cv2.line(_frame, (int(right_col * _frame.shape[1]), int(top_row * _frame.shape[0])),
-              #       (int(right_col * _frame.shape[1]), int(top_row * _frame.shape[0]) + corner_length), (0, 255, 0), 2)
+    #           # # Top-right corner
+    #           # cv2.line(_frame, (int(right_col * _frame.shape[1]), int(top_row * _frame.shape[0])),
+    #           #       (int(right_col * _frame.shape[1]) - corner_length, int(top_row * _frame.shape[0])), (0, 255, 0), 2)
+    #           # cv2.line(_frame, (int(right_col * _frame.shape[1]), int(top_row * _frame.shape[0])),
+    #           #       (int(right_col * _frame.shape[1]), int(top_row * _frame.shape[0]) + corner_length), (0, 255, 0), 2)
 
-              # # Bottom-left corner
-              # cv2.line(_frame, (int(left_col * _frame.shape[1]), int(bottom_row * _frame.shape[0])),
-              #       (int(left_col * _frame.shape[1]) + corner_length, int(bottom_row * _frame.shape[0])), (0, 255, 0), 2)
-              # cv2.line(_frame, (int(left_col * _frame.shape[1]), int(bottom_row * _frame.shape[0])),
-              #       (int(left_col * _frame.shape[1]), int(bottom_row * _frame.shape[0]) - corner_length), (0, 255, 0), 2)
+    #           # # Bottom-left corner
+    #           # cv2.line(_frame, (int(left_col * _frame.shape[1]), int(bottom_row * _frame.shape[0])),
+    #           #       (int(left_col * _frame.shape[1]) + corner_length, int(bottom_row * _frame.shape[0])), (0, 255, 0), 2)
+    #           # cv2.line(_frame, (int(left_col * _frame.shape[1]), int(bottom_row * _frame.shape[0])),
+    #           #       (int(left_col * _frame.shape[1]), int(bottom_row * _frame.shape[0]) - corner_length), (0, 255, 0), 2)
 
-              # # Bottom-right corner
-              # cv2.line(_frame, (int(right_col * _frame.shape[1]), int(bottom_row * _frame.shape[0])),
-              #       (int(right_col * _frame.shape[1]) - corner_length, int(bottom_row * _frame.shape[0])), (0, 255, 0), 2)
-              # cv2.line(_frame, (int(right_col * _frame.shape[1]), int(bottom_row * _frame.shape[0])),
-              #       (int(right_col * _frame.shape[1]), int(bottom_row * _frame.shape[0]) - corner_length), (0, 255, 0), 2)
-      return _frame, prediction_response
-    except Exception as e:
-      cv2.putText(_frame, f"{str(e)}", (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
-      return _frame, "testing"
+    #           # # Bottom-right corner
+    #           # cv2.line(_frame, (int(right_col * _frame.shape[1]), int(bottom_row * _frame.shape[0])),
+    #           #       (int(right_col * _frame.shape[1]) - corner_length, int(bottom_row * _frame.shape[0])), (0, 255, 0), 2)
+    #           # cv2.line(_frame, (int(right_col * _frame.shape[1]), int(bottom_row * _frame.shape[0])),
+    #           #       (int(right_col * _frame.shape[1]), int(bottom_row * _frame.shape[0]) - corner_length), (0, 255, 0), 2)
+    #   return _frame, prediction_response
+    # except Exception as e:
+    #   cv2.putText(_frame, f"{str(e)}", (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
+    #   return _frame, "testing"
+    return _frame, "testing"
     
 st.set_page_config(layout="wide")
 ClarifaiStreamlitCSS.insert_default_css(st)
