@@ -13,7 +13,6 @@ from google.protobuf import json_format, timestamp_pb2
 # Placeholder function for model inference (you can replace this with your actual model)
 def run_model_inference(frame, model_option):
     # Simulating model inference; replace this with actual model code
-    # For now, we will just return the frame with a label indicating which model was used
     if model_option == "Model A":
         return cv2.putText(frame.copy(), "Model A Processed", (50, 100), cv2.FONT_HERSHEY_SIMPLEX,
                            1, (0, 255, 0), 2, cv2.LINE_AA)
@@ -95,11 +94,11 @@ else:
     # Slider for frame skip selection
     frame_skip = st.slider("Select how many frames to skip:", min_value=1, max_value=10, value=2)
 
-    # Select model for inference
-    model_option = st.selectbox("Select a model for inference:", ("Model A", "Model B"))
+    # Create a placeholder for model selections
+    model_options = st.multiselect("Select a model for each video (in order of URLs):", ("Model A", "Model B"))
 
     if st.button("Process Videos"):
-        if video_urls:
+        if video_urls and len(model_options) == len(video_urls.split('\n')):
             # Split the input into a list of URLs
             url_list = [url.strip() for url in video_urls.split('\n') if url.strip()]
             
@@ -111,7 +110,7 @@ else:
             threads = []
 
             # Function to process each video
-            def process_video(video_url, index):
+            def process_video(video_url, index, model_option):
                 video_capture = cv2.VideoCapture(video_url)
 
                 if not video_capture.isOpened():
@@ -129,7 +128,7 @@ else:
 
                     # Only process frames based on the user-selected frame skip
                     if frame_count % frame_skip == 0:
-                        # Run inference on the frame
+                        # Run inference on the frame with the selected model
                         processed_frame = run_model_inference(frame, model_option)
 
                         # Convert the frame from BGR to RGB (for displaying in Streamlit)
@@ -143,9 +142,9 @@ else:
 
                 video_capture.release()
 
-            # Start threads for each video URL
-            for index, video_url in enumerate(url_list):
-                thread = threading.Thread(target=process_video, args=(video_url, index))
+            # Start threads for each video URL with their corresponding model option
+            for index, (video_url, model_option) in enumerate(zip(url_list, model_options)):
+                thread = threading.Thread(target=process_video, args=(video_url, index, model_option))
                 thread.start()
                 threads.append(thread)
 
@@ -161,11 +160,14 @@ else:
                 # Create a grid image from the frames
                 if grid_frames:
                     # If there's an odd number of frames, duplicate the last frame for even grid
-                    if len(grid_frames) % 2 != 0:
-                        grid_frames.append(grid_frames[-1])
+                    if len(grid_frames) == 1:
+                        grid_image = grid_frames[0]  # Only one frame, show it directly
+                    else:
+                        # Create grid layout (2 frames per row)
+                        if len(grid_frames) % 2 != 0:
+                            grid_frames.append(grid_frames[-1])  # Duplicate the last frame if odd
 
-                    # Create grid layout (2 frames per row)
-                    grid_image = np.concatenate([np.concatenate(grid_frames[i:i+2], axis=1) for i in range(0, len(grid_frames), 2)], axis=0)
+                        grid_image = np.concatenate([np.concatenate(grid_frames[i:i+2], axis=1) for i in range(0, len(grid_frames), 2)], axis=0)
 
                     # Display the grid image
                     frame_placeholder.image(grid_image, caption="Video Frames Grid")
@@ -177,4 +179,4 @@ else:
                 thread.join()
 
         else:
-            st.warning("Please provide valid video URLs.")
+            st.warning("Please provide valid video URLs and select models for each video.")
