@@ -58,7 +58,7 @@ if submitted:
 
 # Section for playing and processing video frames
 st.subheader("Video Frame Processing")
-video_option = st.radio("Choose Video Input:", ("Webcam", "Video URL"))
+video_option = st.radio("Choose Video Input:", ("Video URL","Webcam"))
 
 if video_option == "Webcam":
     # Option to capture video from webcam
@@ -88,7 +88,7 @@ else:
             else:
                 frame_placeholder = st.empty()  # Placeholder for the video frame
                 frame_rate = int(video_capture.get(cv2.CAP_PROP_FPS))
-                buffer_duration = 2  # Buffer for 2 seconds
+                buffer_duration = 10  # Buffer for 2 seconds
                 buffer_size = frame_rate * buffer_duration  # Calculate buffer size based on FPS and duration
                 frame_buffer = deque(maxlen=buffer_size)  # Buffer to hold the last N frames
 
@@ -113,18 +113,14 @@ else:
                         # Add the frame to the buffer
                         frame_buffer.append(rgb_frame)
 
-                        # Display the latest buffered frame
-                        if len(frame_buffer) > 0:
-                            frame_placeholder.image(frame_buffer[-1])  # Show the latest frame in the buffer
-                    else:
-                        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                        frame_buffer.append(rgb_frame)
-                        if len(frame_buffer) > 0:
-                            frame_placeholder.image(frame_buffer[-1])  # Show the latest frame in the buffer
+                    # Display the latest buffered frame
+                    if len(frame_buffer) > 0:
+                        frame_placeholder.image(frame_buffer[-1])  # Show the latest frame in the buffer
+                   
                     frame_count += 1
 
                     # Sleep dynamically based on the frame rate for smooth playback
-                    #time.sleep(1 / frame_rate)
+                    time.sleep(1 / frame_rate)
 
                 video_capture.release()
 
