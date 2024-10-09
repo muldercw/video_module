@@ -17,7 +17,8 @@ def list_models():
     all_models = list(app_obj.list_models())
     usermodels = []
     for model in all_models:
-        _umod = {"Name": model.id, "URL": model.url, "type": "User"}
+        model_url = f"https://clarifai.com/{userDataObject.user_id}/{userDataObject.app_id}/models/{model.id}"
+        _umod = {"Name": model.id, "URL": model_url, "type": "User"}
         usermodels.append(_umod)
     return usermodels + list_community_models()
 
