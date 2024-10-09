@@ -95,16 +95,13 @@ else:
                                value="http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4\nhttp://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4")
 
     # Slider for frame skip selection
-    frame_skip = st.slider("Select how many frames to skip:", min_value=2, max_value=20, value=1)
+    frame_skip = st.slider("Select how many frames to skip:", min_value=1, max_value=20, value=2)
 
     # Create a placeholder for model selections
     # Obtain models from list_models()
     available_models = list_models()
   
-    model_options = []
-    for i, url in enumerate(video_urls):
-        model_selection = st.multiselect(f"Select model for video {i+1}: {url}", available_models)
-        model_options.append(model_selection)
+    model_options = st.multiselect("Select a model for each video (in order of URLs):", available_models)
 
     if st.button("Process Videos"):
         if video_urls and len(model_options) == len(video_urls.split('\n')):
