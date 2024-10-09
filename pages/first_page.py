@@ -49,9 +49,8 @@ def run_model_inference(frame, model_option):
       #_model_versions = list(_model.list_versions())
 
       #model_url = "https://clarifai.com/clarifai/main/models/face-detection"
-      detector_model = Model(
-          url=model_option['URL'],
-      )
+      model_url = model_option['URL']
+      detector_model = Model(url = model_url)
       #prediction_response = f"Frame type is: {type(_frame)} and model is: {model_option['Name']} and model URL is: {model_option['URL']}"
       #cv2.putText(_frame, prediction_response, (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
       prediction_response = detector_model.predict_by_bytes(frame_bytes, input_type="image")
@@ -78,7 +77,7 @@ def run_model_inference(frame, model_option):
                                     (int(right_col * frame.shape[1]), int(bottom_row * frame.shape[0])), (0, 255, 0), 2)
       return _frame, prediction_response
     except Exception as e:
-        cv2.putText(_frame, f"Error: {str(e)}", (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
+        cv2.putText(_frame, f"{str(e)}", (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
         return _frame, None
     
 st.set_page_config(layout="wide")
