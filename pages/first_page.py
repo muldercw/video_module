@@ -1,6 +1,5 @@
 import streamlit as st
 import cv2
-import tempfile
 from clarifai.client.auth import create_stub
 from clarifai.client.auth.helper import ClarifaiAuthHelper
 from clarifai.client.user import User
@@ -60,37 +59,35 @@ video_url = st.text_input("Enter a video URL:")
 
 if st.button("Process Video"):
     if video_url:
-        # Download the video to a temporary file
-        temp_video_file = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
+        # Open the video stream directly from the URL using OpenCV
         video_capture = cv2.VideoCapture(video_url)
 
-        # Process every other frame
-        frame_count = 0
-        processed_frames = []
+        if not video_capture.isOpened():
+            st.error("Error: Could not open video.")
+        else:
+            frame_count = 0
+            # Loop through the video frames
+            while video_capture.isOpened():
+                ret, frame = video_capture.read()
 
-        while video_capture.isOpened():
-            ret, frame = video_capture.read()
+                if not ret:
+                    break  # Stop the loop when no more frames
 
-            if not ret:
-                break  # Stop the loop when no more frames
+                # Only process every second frame
+                if frame_count % 2 == 0:
+                    # Add a text box to the frame
+                    frame = cv2.putText(frame, "Processed Frame", (50, 50), cv2.FONT_HERSHEY_SIMPLEX,
+                                        1, (255, 0, 0), 2, cv2.LINE_AA)
 
-            # Only process every second frame
-            if frame_count % 2 == 0:
-                # Add a text box to the frame
-                frame = cv2.putText(frame, "Processed Frame", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 
-                                    1, (255, 0, 0), 2, cv2.LINE_AA)
+                    # Convert the frame from BGR to RGB (for displaying in Streamlit)
+                    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    
+                    # Display the frame in Streamlit
+                    st.image(rgb_frame)
 
-                # Convert the frame from BGR to RGB (for displaying in Streamlit)
-                rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                processed_frames.append(rgb_frame)
+                frame_count += 1
 
-            frame_count += 1
-
-        video_capture.release()
-
-        # Display processed frames in Streamlit
-        for processed_frame in processed_frames:
-            st.image(processed_frame)
+            video_capture.release()
 
     else:
         st.warning("Please provide a valid video URL.")
