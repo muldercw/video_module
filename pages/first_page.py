@@ -1,14 +1,13 @@
 import streamlit as st
 import cv2
+import numpy as np
 import time
 from collections import deque
-import numpy as np
 from clarifai.client.auth import create_stub
 from clarifai.client.auth.helper import ClarifaiAuthHelper
 from clarifai.client.user import User
 from clarifai.modules.css import ClarifaiStreamlitCSS
 from google.protobuf import json_format, timestamp_pb2
-import threading
 
 st.set_page_config(layout="wide")
 ClarifaiStreamlitCSS.insert_default_css(st)
@@ -90,57 +89,63 @@ else:
             url_list = [url.strip() for url in video_urls.split('\n') if url.strip()]
 
             # Create a placeholder for the grid
-            cols = st.columns(len(url_list))  # Create columns based on the number of URLs
+            frame_placeholder = st.empty()
 
-            def process_video(video_url, index):
-                video_capture = cv2.VideoCapture(video_url)
+            # Loop through the URLs and create a frame buffer for each video
+            video_buffers = [deque(maxlen=2) for _ in range(len(url_list))]  # Buffer for the latest 2 frames
 
-                if not video_capture.isOpened():
-                    st.error(f"Error: Could not open video at {video_url}.")
-                    return
+            # Start processing videos
+            while True:
+                grid_frames = []  # List to hold frames for the grid
 
-                frame_placeholder = st.empty()  # Placeholder for the video frame
-                frame_rate = int(video_capture.get(cv2.CAP_PROP_FPS))
-                buffer_duration = 2  # Buffer for 2 seconds
-                buffer_size = frame_rate * buffer_duration  # Calculate buffer size based on FPS and duration
-                frame_buffer = deque(maxlen=buffer_size)  # Buffer to hold the last N frames
+                for index, video_url in enumerate(url_list):
+                    # Open the video stream directly from the URL using OpenCV
+                    video_capture = cv2.VideoCapture(video_url)
 
-                frame_count = 0  # Initialize frame count
+                    if not video_capture.isOpened():
+                        st.error(f"Error: Could not open video at {video_url}.")
+                        continue
 
-                # Loop through the video frames
-                while video_capture.isOpened():
-                    ret, frame = video_capture.read()
+                    frame_rate = int(video_capture.get(cv2.CAP_PROP_FPS))
+                    frame_count = 0  # Initialize frame count
 
-                    if not ret:
-                        break  # Stop the loop when no more frames
+                    while video_capture.isOpened():
+                        ret, frame = video_capture.read()
 
-                    # Only process frames based on the user-selected frame skip
-                    if frame_count % frame_skip == 0:
-                        # Add a text box to the frame
-                        frame = cv2.putText(frame, "Processed Frame", (50, 50), cv2.FONT_HERSHEY_SIMPLEX,
-                                            1, (255, 0, 0), 2, cv2.LINE_AA)
+                        if not ret:
+                            break  # Stop the loop when no more frames
 
-                        # Convert the frame from BGR to RGB (for displaying in Streamlit)
-                        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                        # Only process frames based on the user-selected frame skip
+                        if frame_count % frame_skip == 0:
+                            # Add a text box to the frame
+                            frame = cv2.putText(frame, "Processed Frame", (50, 50), cv2.FONT_HERSHEY_SIMPLEX,
+                                                1, (255, 0, 0), 2, cv2.LINE_AA)
 
-                        # Add the frame to the buffer
-                        frame_buffer.append(rgb_frame)
+                            # Convert the frame from BGR to RGB (for displaying in Streamlit)
+                            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-                        # Display the latest buffered frame
-                        if len(frame_buffer) > 0:
-                            frame_placeholder.image(frame_buffer[-1], caption=f"Video {index + 1}")  # Show the latest frame in the buffer
+                            # Add the frame to the buffer
+                            video_buffers[index].append(rgb_frame)
 
-                    frame_count += 1
+                            # If the buffer is filled, add the last frame to the grid
+                            if len(video_buffers[index]) > 0:
+                                grid_frames.append(video_buffers[index][-1])  # Append the latest frame
 
-                    # Sleep dynamically based on the frame rate for smooth playback
-                    time.sleep(1 / frame_rate)
+                        frame_count += 1
 
-                video_capture.release()
+                        # Sleep dynamically based on the frame rate for smooth playback
+                        time.sleep(1 / frame_rate)
 
-            for index, video_url in enumerate(url_list):
-                with cols[index % len(cols)]:  # Distribute videos across the columns
-                    st.subheader(f"Video {index + 1}")
-                    threading.Thread(target=process_video, args=(video_url, index)).start()
+                    video_capture.release()
+
+                # Create a grid image from the frames
+                if grid_frames:
+                    grid_image = np.concatenate([np.concatenate(grid_frames[i:i+2], axis=1) for i in range(0, len(grid_frames), 2)], axis=0)
+
+                    # Display the grid image
+                    frame_placeholder.image(grid_image, caption="Video Frames Grid")
+
+                time.sleep(0.1)  # Slight delay to avoid overwhelming the stream
 
         else:
             st.warning("Please provide valid video URLs.")
