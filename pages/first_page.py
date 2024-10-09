@@ -27,48 +27,60 @@ def list_community_models():
                              {"Name": "Face Detection", "URL": "https://clarifai.com/clarifai/main/models/face-detection", "type":"Community"}]
     return predefined_model_urls
 
+def numpy_array_to_bytes(np_array, image_format='.jpg'):
+    # Encode the image into the desired format (JPEG, PNG, etc.)
+    success, encoded_image = cv2.imencode(image_format, np_array)
 
+    if success:
+        # Convert the encoded image to a byte array
+        byte_array = encoded_image.tobytes()
+        return byte_array
+    else:
+        raise ValueError("Failed to encode the NumPy array as an image.")
+    
 def run_model_inference(frame, model_option):
     _frame = frame.copy()
-    #convert frame to bytes
-    #frame_bytes = cv2.imencode('.jpg', frame)[1].tobytes()
+    try:
+        
+      frame_bytes = numpy_array_to_bytes(_frame)
 
-    #_model = Model(model_id=model_option['Name'])
-    #_model_versions = list(_model.list_versions())
 
-    #model_url = "https://clarifai.com/clarifai/main/models/face-detection"
-    #detector_model = Model(
-    #    url=model_option['URL'],
-    #)
-    prediction_response = f"Frame type is: {type(_frame)} and model is: {model_option['Name']} and model URL is: {model_option['URL']}"
-    cv2.putText(_frame, prediction_response, (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
-    #prediction_response = detector_model.predict_by_bytes(_frame, input_type="image")
+      #_model = Model(model_id=model_option['Name'])
+      #_model_versions = list(_model.list_versions())
 
-    # Since we have one input, one output will exist here
-    # regions = prediction_response.outputs[0].data.regions
+      #model_url = "https://clarifai.com/clarifai/main/models/face-detection"
+      detector_model = Model(
+          url=model_option['URL'],
+      )
+      #prediction_response = f"Frame type is: {type(_frame)} and model is: {model_option['Name']} and model URL is: {model_option['URL']}"
+      #cv2.putText(_frame, prediction_response, (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+      prediction_response = detector_model.predict_by_bytes(frame_bytes, input_type="image")
 
-    # for region in regions:
-    #     # Accessing and rounding the bounding box values
-    #     top_row = round(region.region_info.bounding_box.top_row, 3)
-    #     left_col = round(region.region_info.bounding_box.left_col, 3)
-    #     bottom_row = round(region.region_info.bounding_box.bottom_row, 3)
-    #     right_col = round(region.region_info.bounding_box.right_col, 3)
+      
+      regions = prediction_response.outputs[0].data.regions
 
-    #     for concept in region.data.concepts:
-    #         # Accessing and rounding the concept value
-    #         name = concept.name
-    #         value = round(concept.value, 4)
+      for region in regions:
+          # Accessing and rounding the bounding box values
+          top_row = round(region.region_info.bounding_box.top_row, 3)
+          left_col = round(region.region_info.bounding_box.left_col, 3)
+          bottom_row = round(region.region_info.bounding_box.bottom_row, 3)
+          right_col = round(region.region_info.bounding_box.right_col, 3)
 
-    #         print(
-    #             (f"{name}: {value} BBox: {top_row}, {left_col}, {bottom_row}, {right_col}")
-    #         )
-    #         cv2.rectangle(_frame, (int(left_col * frame.shape[1]), int(top_row * frame.shape[0])),
-    #                               (int(right_col * frame.shape[1]), int(bottom_row * frame.shape[0])), (0, 255, 0), 2)
-    return _frame, prediction_response
-    # Simulate model inference
-    #return cv2.putText(frame.copy(), model_option['Name'], (50, 100), cv2.FONT_HERSHEY_SIMPLEX,
-    ######                       1, (0, 255, 0), 2, cv2.LINE_AA), None
+          for concept in region.data.concepts:
+              # Accessing and rounding the concept value
+              name = concept.name
+              value = round(concept.value, 4)
 
+              print(
+                  (f"{name}: {value} BBox: {top_row}, {left_col}, {bottom_row}, {right_col}")
+              )
+              cv2.rectangle(_frame, (int(left_col * frame.shape[1]), int(top_row * frame.shape[0])),
+                                    (int(right_col * frame.shape[1]), int(bottom_row * frame.shape[0])), (0, 255, 0), 2)
+      return _frame, prediction_response
+    except Exception as e:
+        cv2.putText(_frame, f"Error: {str(e)}", (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
+        return _frame, None
+    
 st.set_page_config(layout="wide")
 ClarifaiStreamlitCSS.insert_default_css(st)
 
