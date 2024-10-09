@@ -1,4 +1,4 @@
-clarifai==9.8.1
+clarifai
 streamlit==1.24.0
 opencv-python-headless
 numpy
