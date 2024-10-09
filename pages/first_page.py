@@ -17,39 +17,10 @@ def list_models():
     all_models = list(app_obj.list_models())
     return [model.id for model in all_models]
 
-
-
 def run_model_inference(frame, model_option):
-    # will return frame with detections as well as the json response from the model
-  # model_url = "https://clarifai.com/clarifai/main/models/face-detection"
-  # detector_model = Model(
-  #     url=model_url)
-  # prediction_response = detector_model.predict_by_bytes(frame, input_type="image")
-  # regions = prediction_response.outputs[0].data.regions
-
-  # for region in regions:
-  #     # Accessing and rounding the bounding box values
-  #     top_row = round(region.region_info.bounding_box.top_row, 3)
-  #     left_col = round(region.region_info.bounding_box.left_col, 3)
-  #     bottom_row = round(region.region_info.bounding_box.bottom_row, 3)
-  #     right_col = round(region.region_info.bounding_box.right_col, 3)
-
-  #     for concept in region.data.concepts:
-  #         # Accessing and rounding the concept value
-  #         name = concept.name
-  #         value = round(concept.value, 4)
-
-  #         print(
-  #             (f"{name}: {value} BBox: {top_row}, {left_col}, {bottom_row}, {right_col}")
-  #         )
-  #         frame = cv2.rectangle(frame, (int(left_col * frame.shape[1]), int(top_row * frame.shape[0])),
-  #                               (int(right_col * frame.shape[1]), int(bottom_row * frame.shape[0])), (0, 255, 0), 2)
-
-    # Simulating model inference; replace this with actua
-  return cv2.putText(frame.copy(), model_option, (50, 100), cv2.FONT_HERSHEY_SIMPLEX,
-                           1, (0, 255, 0), 2, cv2.LINE_AA) , None
-  #return frame, prediction_response
-    
+    # Simulate model inference
+    return cv2.putText(frame.copy(), model_option, (50, 100), cv2.FONT_HERSHEY_SIMPLEX,
+                           1, (0, 255, 0), 2, cv2.LINE_AA), None
 
 st.set_page_config(layout="wide")
 ClarifaiStreamlitCSS.insert_default_css(st)
@@ -60,42 +31,6 @@ stub = create_stub(auth)
 userDataObject = auth.get_user_app_id_proto()
 
 st.title("Video Processing & Monitoring")
-
-# Form to get user input for the number of inputs to display
-# with st.form(key="data-inputs"):
-#     mtotal = st.number_input("Select number of inputs to view in a table:", min_value=5, max_value=100)
-#     submitted = st.form_submit_button('Submit')
-
-# if submitted:
-#     if mtotal is None or mtotal == 0:
-#         st.warning("Number of inputs must be provided.")
-#         st.stop()
-#     else:
-#         st.write(f"Number of inputs in table will be: {mtotal}")
-
-#     # Retrieve inputs from Clarifai app
-#     input_obj = User(user_id=userDataObject.user_id).app(app_id=userDataObject.app_id).inputs()
-#     all_inputs = input_obj.list_inputs()
-
-#     # Check if there are enough inputs to display
-#     if len(all_inputs) < mtotal:
-#         raise Exception(f"Number of inputs is less than {mtotal}. Please add more inputs or reduce the inputs to be displayed!")
-
-#     else:
-#         data = []
-#         # Collect input data along with metadata
-#         for inp in range(mtotal):
-#             data.append({
-#                 "id": all_inputs[inp].id,
-#                 "data_url": all_inputs[inp].data.image.url,
-#                 "status": all_inputs[inp].status.description,
-#                 "created_at": timestamp_pb2.Timestamp.ToDatetime(all_inputs[inp].created_at),
-#                 "modified_at": timestamp_pb2.Timestamp.ToDatetime(all_inputs[inp].modified_at),
-#                 "metadata": json_format.MessageToDict(all_inputs[inp].data.metadata),
-#             })
-
-#         # Display data as a table
-#         st.dataframe(data)
 
 # Section for playing and processing video frames
 st.subheader("Video Frame Processing")
@@ -125,17 +60,18 @@ else:
     # Slider for frame skip selection
     frame_skip = st.slider("Select how many frames to skip:", min_value=1, max_value=20, value=2)
 
-    # Create a placeholder for model selections
     # Obtain models from list_models()
     available_models = list_models()
-  
-    model_options = st.multiselect("Select models for the videos:", available_models, default=available_models[:len(video_urls.split('\n'))])
+
+    # Create a model selector for each video URL
+    url_list = [url.strip() for url in video_urls.split('\n') if url.strip()]
+    model_options = []
+    for idx, url in enumerate(url_list):
+        model_option = st.selectbox(f"Select a model for Video {idx+1}:", available_models, key=f"model_{idx}")
+        model_options.append(model_option)
 
     if st.button("Process Videos"):
-        if video_urls and len(model_options) == len(video_urls.split('\n')):
-            # Split the input into a list of URLs
-            url_list = [url.strip() for url in video_urls.split('\n') if url.strip()]
-            
+        if video_urls and len(model_options) == len(url_list):
             # Create a placeholder for the grid
             frame_placeholder = st.empty()
 
@@ -165,7 +101,7 @@ else:
                     # Only process frames based on the user-selected frame skip
                     if frame_count % frame_skip == 0:
                         # Run inference on the frame with the selected model
-                        processed_frame, model_respose = run_model_inference(frame, model_option)
+                        processed_frame, model_response = run_model_inference(frame, model_option)
 
                         # Convert the frame from BGR to RGB (for displaying in Streamlit)
                         rgb_frame = cv2.cvtColor(processed_frame, cv2.COLOR_BGR2RGB)
@@ -174,7 +110,6 @@ else:
                         video_buffers[index].append(rgb_frame)
 
                     frame_count += 1
-                    #time.sleep(1 / frame_rate)
 
                 video_capture.release()
 
