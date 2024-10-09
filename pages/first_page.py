@@ -20,7 +20,7 @@ def list_models():
         model_url = f"https://clarifai.com/{userDataObject.user_id}/{userDataObject.app_id}/models/{model.id}"
         _umod = {"Name": model.id, "URL": model_url, "type": "User"}
         usermodels.append(_umod)
-    return usermodels + list_community_models()
+    return list_community_models() + usermodels
 
 def list_community_models():
     predefined_model_urls = [{"Name": "General-Image-Detection", "URL": "https://clarifai.com/clarifai/main/models/general-image-detection", "type":"Community"},
@@ -54,7 +54,7 @@ def run_model_inference(frame, model_option):
       #prediction_response = f"Frame type is: {type(_frame)} and model is: {model_option['Name']} and model URL is: {model_option['URL']}"
       #cv2.putText(_frame, prediction_response, (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
       prediction_response = detector_model.predict_by_bytes(frame_bytes, input_type="image")
-
+      length, width = _frame.shape[:2]
       
       regions = prediction_response.outputs[0].data.regions
 
@@ -73,8 +73,13 @@ def run_model_inference(frame, model_option):
               print(
                   (f"{name}: {value} BBox: {top_row}, {left_col}, {bottom_row}, {right_col}")
               )
-              cv2.putText(_frame, f"{name}: {value}", (int(left_col * _frame.shape[1]), int(top_row * _frame.shape[0]) - 10),
+              cv2.rectangle(_frame, (int(left_col * width), int(top_row * length)),
+                            (int(right_col * width), int(bottom_row * length)), (0, 255, 0), 2)
+              cv2.putText(_frame, f"{name}: {value}", (int(left_col * width), int(top_row * length - 10)),
                           cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2, cv2.LINE_AA)
+
+              # cv2.rectangle(_frame, (int(left_col * frame.shape[1]), int(top_row * frame.shape[0])),
+              #                     (int(right_col * frame.shape[1]), int(bottom_row * frame.shape[0])), (0, 255, 0), 2)
               # # Draw corners instead of full rectangle
               # corner_length = 10  # Length of the corner lines
 
