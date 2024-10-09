@@ -47,7 +47,7 @@ def run_model_inference(frame, model_option):
 
     # Simulating model inference; replace this with actua
   return cv2.putText(frame.copy(), model_option, (50, 100), cv2.FONT_HERSHEY_SIMPLEX,
-                           1, (0, 255, 0), 2, cv2.LINE_AA)
+                           1, (0, 255, 0), 2, cv2.LINE_AA) , None
   #return frame, prediction_response
     
 
