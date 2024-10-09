@@ -7,19 +7,21 @@ from collections import deque
 from clarifai.client.auth import create_stub
 from clarifai.client.auth.helper import ClarifaiAuthHelper
 from clarifai.client.user import User
+from clarifai.client.app import App
 from clarifai.modules.css import ClarifaiStreamlitCSS
 from google.protobuf import json_format, timestamp_pb2
+
+def list_models():
+    app_obj = App(user_id=userDataObject.user_id, app_id=userDataObject.app_id)
+    all_models = list(app_obj.list_models())
+    return [model.id for model in all_models]
 
 # Placeholder function for model inference (you can replace this with your actual model)
 def run_model_inference(frame, model_option):
     # Simulating model inference; replace this with actual model code
-    if model_option == "Model A":
-        return cv2.putText(frame.copy(), "Model A Processed", (50, 100), cv2.FONT_HERSHEY_SIMPLEX,
+    return cv2.putText(frame.copy(), model_option, (50, 100), cv2.FONT_HERSHEY_SIMPLEX,
                            1, (0, 255, 0), 2, cv2.LINE_AA)
-    elif model_option == "Model B":
-        return cv2.putText(frame.copy(), "Model B Processed", (50, 100), cv2.FONT_HERSHEY_SIMPLEX,
-                           1, (0, 0, 255), 2, cv2.LINE_AA)
-    return frame
+    
 
 st.set_page_config(layout="wide")
 ClarifaiStreamlitCSS.insert_default_css(st)
@@ -96,7 +98,13 @@ else:
     frame_skip = st.slider("Select how many frames to skip:", min_value=2, max_value=20, value=1)
 
     # Create a placeholder for model selections
-    model_options = st.multiselect("Select a model for each video (in order of URLs):", ("Model A", "Model B"))
+    # Obtain models from list_models()
+    available_models = list_models()
+  
+    model_options = []
+    for i, url in enumerate(video_urls):
+        model_selection = st.multiselect(f"Select model for video {i+1}: {url}", available_models)
+        model_options.append(model_selection)
 
     if st.button("Process Videos"):
         if video_urls and len(model_options) == len(video_urls.split('\n')):
