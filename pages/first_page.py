@@ -29,11 +29,11 @@ def list_community_models():
 
 
 def run_model_inference(frame, model_option):
-    _model = Model(model_id=model_option)
-    _model_versions = list(_model.list_versions())
+    _model = Model(model_id=model_option['Name'])
+    #_model_versions = list(_model.list_versions())
 
     # Simulate model inference
-    return cv2.putText(frame.copy(), model_option, (50, 100), cv2.FONT_HERSHEY_SIMPLEX,
+    return cv2.putText(frame.copy(), model_option['Name'], (50, 100), cv2.FONT_HERSHEY_SIMPLEX,
                            1, (0, 255, 0), 2, cv2.LINE_AA), None
 
 st.set_page_config(layout="wide")
