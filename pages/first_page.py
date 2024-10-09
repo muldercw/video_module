@@ -129,7 +129,7 @@ else:
     # Obtain models from list_models()
     available_models = list_models()
   
-    model_options = st.multiselect("Select a model for each video (in order of URLs):", available_models)
+    model_options = st.multiselect("Select models for the videos:", available_models, default=available_models[:len(video_urls.split('\n'))])
 
     if st.button("Process Videos"):
         if video_urls and len(model_options) == len(video_urls.split('\n')):
@@ -156,6 +156,8 @@ else:
 
                 while video_capture.isOpened():
                     ret, frame = video_capture.read()
+                    # resize the frame to 640x480
+                    frame = cv2.resize(frame, (640, 480))
 
                     if not ret:
                         break  # Stop the loop when no more frames
@@ -172,7 +174,7 @@ else:
                         video_buffers[index].append(rgb_frame)
 
                     frame_count += 1
-                    time.sleep(1 / frame_rate)
+                    #time.sleep(1 / frame_rate)
 
                 video_capture.release()
 
@@ -199,7 +201,8 @@ else:
                     else:
                         # Create grid layout (2 frames per row)
                         if len(grid_frames) % 2 != 0:
-                            grid_frames.append(grid_frames[-1])  # Duplicate the last frame if odd
+                            blank_frame = np.zeros_like(grid_frames[-1])  # Create a blank frame
+                            grid_frames.append(blank_frame)  # Add the blank frame if odd
 
                         grid_image = np.concatenate([np.concatenate(grid_frames[i:i+2], axis=1) for i in range(0, len(grid_frames), 2)], axis=0)
 
