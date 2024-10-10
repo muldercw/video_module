@@ -183,7 +183,7 @@ else:
                     grid_image = grid_frames[0]  # Only one frame, show it directly
                 else:
                     # Create grid layout (2 frames per row)
-                    if len(grid_frames) % 4 != 0:
+                    if len(grid_frames) % 2 != 0:
                         blank_frame = np.zeros_like(grid_frames[-1])  # Create a blank frame
                         grid_frames.append(blank_frame)  # Add the blank frame if odd
 
