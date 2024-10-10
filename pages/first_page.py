@@ -15,7 +15,6 @@ from google.protobuf import json_format
 
 
 
-
 def list_models():
     app_obj = App(user_id=userDataObject.user_id, app_id=userDataObject.app_id)
     all_models = list(app_obj.list_models())
@@ -30,34 +29,9 @@ def list_community_models():
     predefined_model_urls = [
         {"Name": "General-Image-Detection", "URL": "https://clarifai.com/clarifai/main/models/general-image-detection", "type": "Community"},
         {"Name": "Face Detection", "URL": "https://clarifai.com/clarifai/main/models/face-detection", "type": "Community"},
-        {"Name": "Disable Detections", "URL": "xx", "type": "Disabled"},
-        {"Name": "Weapon Detection", "URL": "https://clarifai.com/clarifai/main/models/weapon-detection", "type": "Community"},
-        {"Name": "Vehicle Detection", "URL": "https://clarifai.com/clarifai/Roundabout-Aerial-Images-for-Vehicles-Det-Kaggle/models/vehicle-detector-alpha-x", "type": "Community"},
-        {"Name": "Movement", "URL": "xx", "type": "Movement"}
+        {"Name": "Disable Detections", "URL": "xx", "type": "disabled"}
     ]
     return predefined_model_urls
-
-# def movement_detection(frame, threshold=25):
-#     foreground_mask = background_subtractor.apply(frame)
-#     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
-#     filtered_mask = cv2.morphologyEx(foreground_mask, cv2.MORPH_CLOSE, kernel)  # Closing to fill gaps
-#     filtered_mask = cv2.morphologyEx(filtered_mask, cv2.MORPH_OPEN, kernel)     # Opening to remove noise
-#     contours, _ = cv2.findContours(filtered_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-#     if contours:
-#         contours = [c for c in contours if cv2.contourArea(c) > threshold]  # Threshold to ignore small contours
-#         if contours:
-#             largest_contour = max(contours, key=cv2.contourArea)
-#             x, y, w, h = cv2.boundingRect(largest_contour)
-#             if overlay is None:
-#                 overlay = np.zeros_like(frame)
-#             cv2.rectangle(overlay, (x, y), (x + w, y + h), (0, 255, 0), 2)
-#             overlay_counter = overlay_decay
-#     if overlay_counter > 0:
-#         combined_frame = cv2.addWeighted(frame, 1, overlay, 1, 0)
-#         overlay_counter -= 1
-#     else:
-#         combined_frame = frame
-#     return combined_frame, None
 
 
 def draw_box_corners(frame, left, top, right, bottom, color, thickness=2, corner_length=10):
@@ -78,10 +52,8 @@ def draw_box_corners(frame, left, top, right, bottom, color, thickness=2, corner
     cv2.line(frame, (right, bottom), (right, bottom - corner_length), color, thickness)  # vertical
 
 def run_model_inference(frame, model_option, color=(0, 255, 0)):
-    if model_option['type'] == "Disabled":
+    if model_option['type'] == "disabled":
         return frame, None
-    # if model_option['type'] == "Movement":
-    #     return movement_detection(frame, None)
 
     _frame = frame.copy()
     frame_bytes = cv2.imencode('.jpg', frame)[1].tobytes()
@@ -176,11 +148,6 @@ ClarifaiStreamlitCSS.insert_default_css(st)
 auth = ClarifaiAuthHelper.from_streamlit(st)
 stub = create_stub(auth)
 userDataObject = auth.get_user_app_id_proto()
-
-# background_subtractor = cv2.createBackgroundSubtractorMOG2(history=10000, varThreshold=40, detectShadows=False)
-# overlay = None
-# overlay_decay = 3  
-# overlay_counter = 0
 
 st.title("Video Processing & Monitoring")
 
