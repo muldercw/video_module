@@ -41,40 +41,63 @@ def list_custom_python_models():
     ]
 
 def movement_detection(overlay, overlay_counter, background_subtractor, frame, threshold=25):
+    if not isinstance(frame, np.ndarray):
+        raise ValueError("The 'frame' is not a valid numpy array.")
+    
     _frame = frame.copy()
     overlay_decay = 3
     try:
-      foreground_mask = background_subtractor.apply(_frame)
-      kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
-      filtered_mask = cv2.morphologyEx(foreground_mask, cv2.MORPH_CLOSE, kernel)  # Closing to fill gaps
-      filtered_mask = cv2.morphologyEx(filtered_mask, cv2.MORPH_OPEN, kernel)     # Opening to remove noise
-      contours, _ = cv2.findContours(filtered_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-      if contours:
-          contours = [c for c in contours if cv2.contourArea(c) > threshold]  # Threshold to ignore small contours
-          if contours:
-              largest_contour = max(contours, key=cv2.contourArea)
-              x, y, w, h = cv2.boundingRect(largest_contour)
-              if overlay is None:
-                  overlay = np.zeros_like(_frame)
-              draw_box_corners(overlay, x, y, x + w, y + h, (0, 255, 0), thickness=2, corner_length=15)
-              #cv2.rectangle(overlay, (x, y), (x + w, y + h), (0, 255, 0), 2)
-              overlay_counter = overlay_decay
-      if overlay_counter > 0:
-          combined_frame = cv2.addWeighted(_frame, 1, overlay, 1, 0)
-          overlay_counter -= 1
-      else:
-          combined_frame = _frame
-      cv2.putText(combined_frame, "Movement Detection", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
-      return overlay, overlay_counter, combined_frame, None
+        # Ensure overlay is either None or a NumPy array
+        if overlay is not None and not isinstance(overlay, np.ndarray):
+            raise ValueError("The 'overlay' is not a valid numpy array.")
+        
+        # Apply background subtraction and process the mask
+        foreground_mask = background_subtractor.apply(_frame)
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+        filtered_mask = cv2.morphologyEx(foreground_mask, cv2.MORPH_CLOSE, kernel)  # Closing to fill gaps
+        filtered_mask = cv2.morphologyEx(filtered_mask, cv2.MORPH_OPEN, kernel)     # Opening to remove noise
+        
+        # Find contours in the mask
+        contours, _ = cv2.findContours(filtered_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        if contours:
+            # Filter out small contours based on the area threshold
+            contours = [c for c in contours if cv2.contourArea(c) > threshold]
+            if contours:
+                # Get the largest contour and its bounding box
+                largest_contour = max(contours, key=cv2.contourArea)
+                x, y, w, h = cv2.boundingRect(largest_contour)
+                
+                # Initialize overlay if it's None
+                if overlay is None:
+                    overlay = np.zeros_like(_frame)
+                
+                # Draw a rectangle or custom corner box on the overlay
+                draw_box_corners(overlay, x, y, x + w, y + h, (0, 255, 0), thickness=2, corner_length=15)
+                overlay_counter = overlay_decay
+        
+        # Combine overlay with the frame if overlay_counter is active
+        if overlay_counter > 0:
+            combined_frame = cv2.addWeighted(_frame, 1, overlay, 1, 0)
+            overlay_counter -= 1
+        else:
+            combined_frame = _frame
+        
+        # Add label text to the frame
+        cv2.putText(combined_frame, "Movement Detection", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+        return overlay, overlay_counter, combined_frame, None
     except Exception as e:
-      st.error(e)
-      error_message = str(e)
-      wrapped_text = "\n".join([error_message[i:i+40] for i in range(0, len(error_message), 40)])
-      y0, dy = 50, 20
-      for i, line in enumerate(wrapped_text.split('\n')):
-          y = y0 + i * dy
-          cv2.putText(_frame, line, (50, y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1, cv2.LINE_AA)
-      return overlay, overlay_counter, _frame, None
+        st.error(str(e))
+        error_message = str(e)
+        
+        # Add error message to the frame for debugging purposes
+        wrapped_text = "\n".join([error_message[i:i + 40] for i in range(0, len(error_message), 40)])
+        y0, dy = 50, 20
+        for i, line in enumerate(wrapped_text.split('\n')):
+            y = y0 + i * dy
+            cv2.putText(_frame, line, (50, y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1, cv2.LINE_AA)
+        
+        return overlay, overlay_counter, _frame, None
+
 
 
 
