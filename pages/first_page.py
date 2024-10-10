@@ -319,7 +319,7 @@ else:
           threads = []
 
           # Function to process each video
-          def process_video(video_url, index, model_option, stop_event):
+          def process_video(overlay, overlay_counter, video_url, index, model_option, stop_event):
               video_capture = cv2.VideoCapture(video_url)
               if not video_capture.isOpened():
                   st.error(f"Error: Could not open video at {video_url}.")
@@ -363,7 +363,7 @@ else:
 
           # Start threads for each video URL with their corresponding model option
           for index, (video_url, model_option) in enumerate(zip(url_list, model_options)):
-              thread = threading.Thread(target=process_video, args=(video_url, index, model_option, stop_event))
+              thread = threading.Thread(target=process_video, args=(overlay, overlay_counter, video_url, index, model_option, stop_event))
               thread.start()
               threads.append(thread)
 
@@ -394,11 +394,12 @@ else:
           # Ensure all threads are finished
           for thread in threads:
               thread.join()
+       
         except Exception as e:
-          st.success(e)
+          st.error(e)
           json_responses.append(f"Error {e} processing video at {video_url}")
 
-        st.success("Video processing completed!")
+        st.success(json_responses)
 
     verify_json_responses()
 
