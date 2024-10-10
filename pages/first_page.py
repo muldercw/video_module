@@ -10,7 +10,7 @@ from clarifai.client.user import User
 from clarifai.client.model import Model
 from clarifai.client.app import App
 from clarifai.modules.css import ClarifaiStreamlitCSS
-from google.protobuf import json_format, timestamp_pb2
+from google.protobuf import json_format
 
 def list_models():
     app_obj = App(user_id=userDataObject.user_id, app_id=userDataObject.app_id)
@@ -76,7 +76,7 @@ def display_json_responses():
 
 # Section for playing and processing video frames
 st.subheader("Video Frame Processing")
-video_option = st.radio("Choose Video Input:", ("Multiple Video URLs", "Webcam"), horizontal=True)
+video_option = st.radio("Choose Video Input:", ("Multiple Video URLs", "Webcam", "RTMP Stream", "UDP Stream"), horizontal=True)
 
 if video_option == "Webcam":
     # Option to capture video from webcam
@@ -92,6 +92,54 @@ if video_option == "Webcam":
         # Convert the frame from BGR to RGB (for displaying in Streamlit)
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         st.image(rgb_frame, caption="Processed Webcam Frame")
+
+elif video_option in ["RTMP Stream", "UDP Stream"]:
+    # Input for streaming URL
+    stream_url = st.text_input("Enter the streaming URL:")
+
+    if st.button("Start Stream"):
+        if stream_url:
+            # Start processing the RTMP or UDP stream
+            frame_placeholder = st.empty()
+            stop_event = threading.Event()
+
+            # Function to process the stream
+            def process_stream(stream_url, stop_event):
+                video_capture = cv2.VideoCapture(stream_url)
+
+                if not video_capture.isOpened():
+                    st.error(f"Error: Could not open stream at {stream_url}.")
+                    return
+
+                while video_capture.isOpened() and not stop_event.is_set():
+                    ret, frame = video_capture.read()
+                    if not ret:
+                        break  # Stop the loop when no more frames
+
+                    # Run inference on the frame (you can choose a default model for streaming)
+                    model_option = {"Name": "General-Image-Detection", "URL": "https://clarifai.com/clarifai/main/models/general-image-detection", "type": "Community"}
+                    processed_frame, prediction_response = run_model_inference(frame, model_option)
+
+                    if prediction_response:
+                        # Append prediction results to JSON responses
+                        json_responses.append(json_format.MessageToJson(prediction_response))
+
+                    # Convert the frame from BGR to RGB (for displaying in Streamlit)
+                    rgb_frame = cv2.cvtColor(processed_frame, cv2.COLOR_BGR2RGB)
+
+                    # Display the processed frame
+                    frame_placeholder.image(rgb_frame, caption="Streaming Frame")
+
+                video_capture.release()
+
+            # Start the streaming thread
+            thread = threading.Thread(target=process_stream, args=(stream_url, stop_event))
+            thread.start()
+
+            # Stop processing button
+            if st.button("Stop Stream"):
+                stop_event.set()
+                thread.join()
 
 else:
     # Input for multiple video URLs with prepopulated example URLs
@@ -157,45 +205,25 @@ else:
                     # Convert the frame from BGR to RGB (for displaying in Streamlit)
                     rgb_frame = cv2.cvtColor(processed_frame, cv2.COLOR_BGR2RGB)
 
-                    # Add the frame to the buffer
+                    # Store the latest frame in the buffer
                     video_buffers[index].append(rgb_frame)
+
+                    # Display the processed frame
+                    frame_placeholder.image(rgb_frame, caption=f"Processed Video Frame {index + 1}")
 
                 frame_count += 1
 
             video_capture.release()
 
-        # Start threads for each video URL with their corresponding model option
-        for index, (video_url, model_option) in enumerate(zip(url_list, model_options)):
-            thread = threading.Thread(target=process_video, args=(video_url, index, model_option, stop_event))
-            thread.start()
+        # Start processing each video in a separate thread
+        for idx, url in enumerate(url_list):
+            thread = threading.Thread(target=process_video, args=(url, idx, model_options[idx], stop_event))
             threads.append(thread)
+            thread.start()
 
-        # Monitor threads and update the grid image
-        while any(thread.is_alive() for thread in threads):
-            grid_frames = []
-
-            for index in range(len(video_buffers)):
-                if len(video_buffers[index]) > 0:
-                    grid_frames.append(video_buffers[index][-1])  # Append the latest frame
-
-            if grid_frames:
-                if len(grid_frames) == 1:
-                    grid_image = grid_frames[0]  # Only one frame, show it directly
-                else:
-                    # Create grid layout (2 frames per row)
-                    if len(grid_frames) % 2 != 0:
-                        blank_frame = np.zeros_like(grid_frames[-1])  # Create a blank frame
-                        grid_frames.append(blank_frame)  # Add the blank frame if odd
-
-                    grid_image = np.concatenate([np.concatenate(grid_frames[i:i+2], axis=1) for i in range(0, len(grid_frames), 2)], axis=0)
-
-                frame_placeholder.image(grid_image, caption="Video Frames Grid")
-
-            time.sleep(0.1)
-
-        # Join threads after processing
+        # Wait for all threads to complete
         for thread in threads:
             thread.join()
 
-# Call the function to display JSON responses
+# Display the JSON responses
 display_json_responses()
