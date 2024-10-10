@@ -23,9 +23,11 @@ def list_models():
     return usermodels + list_community_models()
 
 def list_community_models():
-    predefined_model_urls = [{"Name": "General-Image-Detection", "URL": "https://clarifai.com/clarifai/main/models/general-image-detection", "type":"Community"},
-                             {"Name": "Face Detection", "URL": "https://clarifai.com/clarifai/main/models/face-detection", "type":"ommunity"},
-                             {"Name": "Disable Detections", "URL": "xx", "type":"disabled"}]
+    predefined_model_urls = [
+        {"Name": "General-Image-Detection", "URL": "https://clarifai.com/clarifai/main/models/general-image-detection", "type": "Community"},
+        {"Name": "Face Detection", "URL": "https://clarifai.com/clarifai/main/models/face-detection", "type": "Community"},
+        {"Name": "Disable Detections", "URL": "xx", "type": "disabled"}
+    ]
     return predefined_model_urls
 
 def run_model_inference(frame, model_option):
@@ -47,9 +49,6 @@ def run_model_inference(frame, model_option):
         for concept in region.data.concepts:
             name = concept.name
             value = round(concept.value, 4)
-            print(
-                (f"{name}: {value} BBox: {top_row}, {left_col}, {bottom_row}, {right_col}")
-            )
             cv2.putText(_frame, f"{name}:{value}", (int(left_col * frame.shape[1]), int(top_row * frame.shape[0]) - 10),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2, cv2.LINE_AA)
             cv2.rectangle(_frame, (int(left_col * frame.shape[1]), int(top_row * frame.shape[0])),
@@ -66,6 +65,15 @@ userDataObject = auth.get_user_app_id_proto()
 
 st.title("Video Processing & Monitoring")
 
+# Collapsible JSON results display
+json_responses = []
+
+def display_json_responses():
+    if st.checkbox("Show JSON Results", value=False):
+        st.subheader("Model Predictions (JSON Responses)")
+        for idx, response in enumerate(json_responses):
+            st.json(response)
+
 # Section for playing and processing video frames
 st.subheader("Video Frame Processing")
 video_option = st.radio("Choose Video Input:", ("Multiple Video URLs", "Webcam"), horizontal=True)
@@ -79,8 +87,7 @@ if video_option == "Webcam":
         frame = cv2.imdecode(np.frombuffer(webcam_input.read(), np.uint8), cv2.IMREAD_COLOR)
 
         # Process the frame (if needed)
-        frame = cv2.putText(frame, "Webcam Frame", (50, 50), cv2.FONT_HERSHEY_SIMPLEX,
-                            1, (255, 0, 0), 2, cv2.LINE_AA)
+        frame = cv2.putText(frame, "Webcam Frame", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv2.LINE_AA)
 
         # Convert the frame from BGR to RGB (for displaying in Streamlit)
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -141,7 +148,11 @@ else:
                 # Only process frames based on the user-selected frame skip
                 if frame_count % frame_skip == 0:
                     # Run inference on the frame with the selected model
-                    processed_frame, _ = run_model_inference(frame, model_option)
+                    processed_frame, prediction_response = run_model_inference(frame, model_option)
+
+                    if prediction_response:
+                        # Append prediction results to JSON responses
+                        json_responses.append(json_format.MessageToJson(prediction_response))
 
                     # Convert the frame from BGR to RGB (for displaying in Streamlit)
                     rgb_frame = cv2.cvtColor(processed_frame, cv2.COLOR_BGR2RGB)
@@ -172,7 +183,7 @@ else:
                     grid_image = grid_frames[0]  # Only one frame, show it directly
                 else:
                     # Create grid layout (2 frames per row)
-                    if len(grid_frames) % 2 != 0:
+                    if len(grid_frames) % 4 != 0:
                         blank_frame = np.zeros_like(grid_frames[-1])  # Create a blank frame
                         grid_frames.append(blank_frame)  # Add the blank frame if odd
 
@@ -182,6 +193,9 @@ else:
 
             time.sleep(0.1)
 
-        # Wait for all threads to finish
+        # Join threads after processing
         for thread in threads:
             thread.join()
+
+# Call the function to display JSON responses
+display_json_responses()
