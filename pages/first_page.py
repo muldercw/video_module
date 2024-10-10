@@ -59,6 +59,7 @@ def movement_detection(overlay, overlay_counter, background_subtractor, frame, t
           overlay_counter -= 1
       else:
           combined_frame = frame
+      cv2.imshow('Moving Objects with Overlay', combined_frame)
       return overlay, overlay_counter, combined_frame, None
     except Exception as e:
       cv2.text(frame, f"Error: {e}", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
@@ -87,7 +88,7 @@ def run_model_inference(background_subtractor, overlay, overlay_counter, frame, 
       if model_option['type'] == "Disabled":
           return overlay, overlay_counter, frame, None
       if model_option['type'] == "Movement":
-          return movement_detection(background_subtractor,overlay, overlay_counter, frame, threshold=25)
+          return movement_detection(background_subtractor, overlay, overlay_counter, frame, threshold=25)
 
       _frame = frame.copy()
       frame_bytes = cv2.imencode('.jpg', frame)[1].tobytes()
