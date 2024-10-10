@@ -81,7 +81,7 @@ json_responses = []
 
 # Section for playing and processing video frames
 st.subheader("Video Frame Processing")
-video_option = st.radio("Choose Video Input:", ("Multiple Video URLs", "Webcam"), horizontal=True)
+video_option = st.radio("Choose Video Input:", ("Standard Video File URLs", "Webcam", "Streaming Video URLs"), horizontal=True)
 
 if video_option == "Webcam":
     # Option to capture video from webcam
@@ -97,7 +97,7 @@ if video_option == "Webcam":
         # Convert the frame from BGR to RGB (for displaying in Streamlit)
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         st.image(rgb_frame, caption="Processed Webcam Frame")
-elif video_option == "Stream Video":
+elif video_option == "Streaming Video":
     # Input for streaming video URL
     stream_urls = st.text_area("Enter video Streams (one per line):",
                                value="https://vs-dash-ww-rd-live.akamaized.net/pl/testcard2020/avc-mobile.m3u8\nrtsp://1701954d6d07.entrypoint.cloud.wowza.com:1935/app-m75436g0/27122ffc_stream2")
