@@ -33,29 +33,63 @@ def list_community_models():
     ]
     return predefined_model_urls
 
-def run_model_inference(frame, model_option):
+
+def draw_box_corners(frame, left, top, right, bottom, color, thickness=2, corner_length=10):
+    # Top-left corner
+    cv2.line(frame, (left, top), (left + corner_length, top), color, thickness)  # horizontal
+    cv2.line(frame, (left, top), (left, top + corner_length), color, thickness)  # vertical
+
+    # Top-right corner
+    cv2.line(frame, (right, top), (right - corner_length, top), color, thickness)  # horizontal
+    cv2.line(frame, (right, top), (right, top + corner_length), color, thickness)  # vertical
+
+    # Bottom-left corner
+    cv2.line(frame, (left, bottom), (left + corner_length, bottom), color, thickness)  # horizontal
+    cv2.line(frame, (left, bottom), (left, bottom - corner_length), color, thickness)  # vertical
+
+    # Bottom-right corner
+    cv2.line(frame, (right, bottom), (right - corner_length, bottom), color, thickness)  # horizontal
+    cv2.line(frame, (right, bottom), (right, bottom - corner_length), color, thickness)  # vertical
+
+def run_model_inference(frame, model_option, color=(0, 255, 0)):
     if model_option['type'] == "disabled":
         return frame, None
+
     _frame = frame.copy()
     frame_bytes = cv2.imencode('.jpg', frame)[1].tobytes()
     model_url = model_option['URL']
     detector_model = Model(url=model_url)
-    cv2.putText(_frame, model_option['Name'], (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+
+    # Put model name at top
+    cv2.putText(_frame, model_option['Name'], (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2, cv2.LINE_AA)
+
+    # Perform prediction
     prediction_response = detector_model.predict_by_bytes(frame_bytes, input_type="image")
     regions = prediction_response.outputs[0].data.regions
+
     for region in regions:
         top_row = round(region.region_info.bounding_box.top_row, 3)
         left_col = round(region.region_info.bounding_box.left_col, 3)
         bottom_row = round(region.region_info.bounding_box.bottom_row, 3)
         right_col = round(region.region_info.bounding_box.right_col, 3)
 
+        # Get absolute coordinates
+        left = int(left_col * frame.shape[1])
+        top = int(top_row * frame.shape[0])
+        right = int(right_col * frame.shape[1])
+        bottom = int(bottom_row * frame.shape[0])
+
+        # Draw corners of the box
+        draw_box_corners(_frame, left, top, right, bottom, color)
+
         for concept in region.data.concepts:
             name = concept.name
             value = round(concept.value, 4)
-            cv2.putText(_frame, f"{name}:{value}", (int(left_col * frame.shape[1]), int(top_row * frame.shape[0]) - 10),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2, cv2.LINE_AA)
-            cv2.rectangle(_frame, (int(left_col * frame.shape[1]), int(top_row * frame.shape[0])),
-                                  (int(right_col * frame.shape[1]), int(bottom_row * frame.shape[0])), (0, 255, 0), 2)
+
+            # Place text between top corners
+            text_position = (left + (right - left) // 4, top - 10)
+            cv2.putText(_frame, f"{name}:{value}", text_position, cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2, cv2.LINE_AA)
+
     return _frame, prediction_response
 
 def verify_json_responses():
@@ -81,7 +115,7 @@ json_responses = []
 
 # Section for playing and processing video frames
 st.subheader("Video Frame Processing")
-video_option = st.radio("Choose Video Input:", ("Standard Video File URLs", "Webcam", "Streaming Video URLs"), horizontal=True)
+video_option = st.radio("Choose Video Input:", ("Standard Video File URLs"), horizontal=True) #, "Webcam", "Streaming Video URLs"
 
 if video_option == "Webcam":
     # Option to capture video from webcam
