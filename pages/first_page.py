@@ -68,7 +68,12 @@ def movement_detection(overlay, overlay_counter, background_subtractor, frame, t
       return overlay, overlay_counter, combined_frame, None
     except Exception as e:
       st.error(e)
-      cv2.putText(_frame, f"{e}", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1, cv2.LINE_AA)
+      error_message = str(e)
+      wrapped_text = "\n".join([error_message[i:i+40] for i in range(0, len(error_message), 40)])
+      y0, dy = 50, 20
+      for i, line in enumerate(wrapped_text.split('\n')):
+          y = y0 + i * dy
+          cv2.putText(_frame, line, (50, y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1, cv2.LINE_AA)
       return overlay, overlay_counter, _frame, None
 
 
