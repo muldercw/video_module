@@ -59,7 +59,7 @@ def movement_detection(overlay, overlay_counter, background_subtractor, frame, t
           overlay_counter -= 1
       else:
           combined_frame = frame
-      cv2.imshow('Moving Objects with Overlay', combined_frame)
+      cv2.text(combined_frame, "Movement Detection", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
       return overlay, overlay_counter, combined_frame, None
     except Exception as e:
       cv2.text(frame, f"Error: {e}", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
