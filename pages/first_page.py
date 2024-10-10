@@ -46,17 +46,21 @@ def movement_detection(overlay, overlay_counter, background_subtractor, frame, t
     
     _frame = frame.copy()
     overlay_decay = 3
+
     try:
-        # Ensure overlay is either None or a NumPy array
-        if overlay is not None and not isinstance(overlay, np.ndarray):
-            raise ValueError("The 'overlay' is not a valid numpy array.")
-        
+        # Ensure overlay is properly initialized
+        if overlay is None:
+            overlay = np.zeros_like(_frame)
+        elif not isinstance(overlay, np.ndarray):
+            overlay = np.zeros_like(_frame)
+            raise ValueError("The 'overlay' was not valid, initialized to a blank array.")
+
         # Apply background subtraction and process the mask
         foreground_mask = background_subtractor.apply(_frame)
         kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
         filtered_mask = cv2.morphologyEx(foreground_mask, cv2.MORPH_CLOSE, kernel)  # Closing to fill gaps
         filtered_mask = cv2.morphologyEx(filtered_mask, cv2.MORPH_OPEN, kernel)     # Opening to remove noise
-        
+
         # Find contours in the mask
         contours, _ = cv2.findContours(filtered_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         if contours:
@@ -66,11 +70,7 @@ def movement_detection(overlay, overlay_counter, background_subtractor, frame, t
                 # Get the largest contour and its bounding box
                 largest_contour = max(contours, key=cv2.contourArea)
                 x, y, w, h = cv2.boundingRect(largest_contour)
-                
-                # Initialize overlay if it's None
-                if overlay is None:
-                    overlay = np.zeros_like(_frame)
-                
+
                 # Draw a rectangle or custom corner box on the overlay
                 draw_box_corners(overlay, x, y, x + w, y + h, (0, 255, 0), thickness=2, corner_length=15)
                 overlay_counter = overlay_decay
@@ -85,10 +85,11 @@ def movement_detection(overlay, overlay_counter, background_subtractor, frame, t
         # Add label text to the frame
         cv2.putText(combined_frame, "Movement Detection", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
         return overlay, overlay_counter, combined_frame, None
+
     except Exception as e:
         st.error(str(e))
         error_message = str(e)
-        
+
         # Add error message to the frame for debugging purposes
         wrapped_text = "\n".join([error_message[i:i + 40] for i in range(0, len(error_message), 40)])
         y0, dy = 50, 20
@@ -97,6 +98,7 @@ def movement_detection(overlay, overlay_counter, background_subtractor, frame, t
             cv2.putText(_frame, line, (50, y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1, cv2.LINE_AA)
         
         return overlay, overlay_counter, _frame, None
+
 
 
 
@@ -225,10 +227,7 @@ auth = ClarifaiAuthHelper.from_streamlit(st)
 stub = create_stub(auth)
 userDataObject = auth.get_user_app_id_proto()
 
-background_subtractor = cv2.createBackgroundSubtractorMOG2(history=10000, varThreshold=40, detectShadows=False)
-overlay = None
-overlay_decay = 3  
-overlay_counter = 0
+
 
 st.title("Video Processing & Monitoring")
 
@@ -277,6 +276,10 @@ elif video_option == "Streaming Video":
         video_buffers = [deque(maxlen=2) for _ in range(len(stream_list))]
         threads = []
         def process_video(video_url, index, model_option, stop_event):
+            background_subtractor = cv2.createBackgroundSubtractorMOG2(history=10000, varThreshold=40, detectShadows=False)
+            overlay = None
+            overlay_decay = 3  
+            overlay_counter = 0
             try:##ffmpeg to read the stream
               command = ['ffmpeg', '-i', video_url, '-f', 'image2pipe', '-pix_fmt', 'bgr24', '-vcodec', 'rawvideo', '-']
               process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=False)
@@ -358,7 +361,11 @@ else:
           threads = []
 
           # Function to process each video
-          def process_video(overlay, overlay_counter, video_url, index, model_option, stop_event):
+          def process_video(video_url, index, model_option, stop_event):
+              background_subtractor = cv2.createBackgroundSubtractorMOG2(history=10000, varThreshold=40, detectShadows=False)
+              overlay = None
+              overlay_decay = 3  
+              overlay_counter = 0
               video_capture = cv2.VideoCapture(video_url)
               if not video_capture.isOpened():
                   st.error(f"Error: Could not open video at {video_url}.")
@@ -402,7 +409,7 @@ else:
 
           # Start threads for each video URL with their corresponding model option
           for index, (video_url, model_option) in enumerate(zip(url_list, model_options)):
-              thread = threading.Thread(target=process_video, args=(overlay, overlay_counter, video_url, index, model_option, stop_event))
+              thread = threading.Thread(target=process_video, args=(video_url, index, model_option, stop_event))
               thread.start()
               threads.append(thread)
 
