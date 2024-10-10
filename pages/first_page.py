@@ -2,46 +2,25 @@ import streamlit as st
 import cv2
 import numpy as np
 import threading
+import time
 import subprocess
-import os
-import sys
 from collections import deque
 from clarifai.client.auth import create_stub
 from clarifai.client.auth.helper import ClarifaiAuthHelper
+from clarifai.client.user import User
 from clarifai.client.model import Model
 from clarifai.client.app import App
 from clarifai.modules.css import ClarifaiStreamlitCSS
 from google.protobuf import json_format
 
-def check_ffmpeg_installed():
-    """Check if FFmpeg is installed, install it if not."""
-    try:
-        subprocess.run(['ffmpeg', '-version'], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        return True
-    except subprocess.CalledProcessError:
-        return False
-
 def install_ffmpeg():
-    """Install FFmpeg."""
-    if sys.platform.startswith('linux'):
-        st.write("Installing FFmpeg on Linux...")
-        subprocess.run(['sudo', 'apt-get', 'update'], check=True)
-        subprocess.run(['sudo', 'apt-get', 'install', '-y', 'ffmpeg'], check=True)
-    elif sys.platform == 'darwin':  # macOS
-        st.write("Installing FFmpeg on macOS...")
-        subprocess.run(['brew', 'install', 'ffmpeg'], check=True)
-    elif sys.platform == 'win32':
-        st.write("FFmpeg is not available for Windows. Please install manually from https://ffmpeg.org/download.html")
-        st.stop()
-    else:
-        st.write("Unsupported OS. Please install FFmpeg manually.")
-        st.stop()
+    try:
+        subprocess.check_call(['apt-get', 'update'])
+        subprocess.check_call(['apt-get', 'install', '-y', 'ffmpeg'])
+        st.success("FFmpeg installed successfully.")
+    except Exception as e:
+        st.error(f"Error installing FFmpeg: {str(e)}")
 
-# Check for FFmpeg installation
-if not check_ffmpeg_installed():
-    install_ffmpeg()
-
-# Continue with the rest of your script...
 def list_models():
     app_obj = App(user_id=userDataObject.user_id, app_id=userDataObject.app_id)
     all_models = list(app_obj.list_models())
@@ -85,8 +64,17 @@ def run_model_inference(frame, model_option):
                                   (int(right_col * frame.shape[1]), int(bottom_row * frame.shape[0])), (0, 255, 0), 2)
     return _frame, prediction_response
 
+def verify_json_responses():
+    if st.checkbox("Show JSON Results", value=False):
+        st.subheader("Model Predictions (JSON Responses)")
+        for idx, response in enumerate(json_responses):
+            st.json(response)
+
 st.set_page_config(layout="wide")
 ClarifaiStreamlitCSS.insert_default_css(st)
+
+# Install FFmpeg
+install_ffmpeg()
 
 # Authentication and Clarifai setup
 auth = ClarifaiAuthHelper.from_streamlit(st)
@@ -98,15 +86,9 @@ st.title("Video Processing & Monitoring")
 # Collapsible JSON results display
 json_responses = []
 
-def display_json_responses():
-    if st.checkbox("Show JSON Results", value=False):
-        st.subheader("Model Predictions (JSON Responses)")
-        for idx, response in enumerate(json_responses):
-            st.json(response)
-
 # Section for playing and processing video frames
 st.subheader("Video Frame Processing")
-video_option = st.radio("Choose Video Input:", ("Multiple Video URLs", "Webcam", "RTMP Stream", "UDP Stream"), horizontal=True)
+video_option = st.radio("Choose Video Input:", ("Multiple Video URLs", "Webcam"), horizontal=True)
 
 if video_option == "Webcam":
     # Option to capture video from webcam
@@ -122,63 +104,67 @@ if video_option == "Webcam":
         # Convert the frame from BGR to RGB (for displaying in Streamlit)
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         st.image(rgb_frame, caption="Processed Webcam Frame")
-
-elif video_option in ["RTMP Stream", "UDP Stream"]:
-    # Input for streaming URL
-    stream_url = st.text_input("Enter the streaming URL:")
-
-    if st.button("Start Stream"):
-        if stream_url:
-            # Start processing the RTMP or UDP stream
-            frame_placeholder = st.empty()
-            stop_event = threading.Event()
-
-            # Function to process the stream using FFmpeg
-            def process_stream(stream_url, stop_event):
-                command = [
-                    'ffmpeg',
-                    '-i', stream_url,
-                    '-f', 'rawvideo',
-                    '-pix_fmt', 'bgr24',
-                    '-an', '-sn', '-vcodec', 'rawvideo', '-y', '-'
-                ]
-                pipe = subprocess.Popen(command, stdout=subprocess.PIPE, bufsize=10**8)
-
-                while True:
-                    if stop_event.is_set():
-                        break
-
-                    raw_frame = pipe.stdout.read(640 * 480 * 3)  # Adjust based on resolution
-                    if not raw_frame:
-                        break
-
-                    frame = np.frombuffer(raw_frame, np.uint8).reshape((480, 640, 3))  # Adjust based on resolution
-
-                    # Run inference on the frame (you can choose a default model for streaming)
-                    model_option = {"Name": "General-Image-Detection", "URL": "https://clarifai.com/clarifai/main/models/general-image-detection", "type": "Community"}
+elif video_option == "Stream Video":
+    # Input for streaming video URL
+    stream_urls = st.text_area("Enter video Streams (one per line):",
+                               value="https://vs-dash-ww-rd-live.akamaized.net/pl/testcard2020/avc-mobile.m3u8\nrtsp://1701954d6d07.entrypoint.cloud.wowza.com:1935/app-m75436g0/27122ffc_stream2")
+    frame_skip = st.slider("Select how many frames to skip:", min_value=1, max_value=20, value=2)
+    available_models = list_models()
+    stream_list = [url.strip() for url in stream_urls.split('\n') if url.strip()]
+    model_options = []
+    for idx, url in enumerate(stream_list):
+        model_names = [model["Name"] for model in available_models]
+        selected_model_name = st.selectbox(f"Select a model for Stream {idx + 1}:", model_names, key=f"model_{idx}")
+        selected_model = next(model for model in available_models if model["Name"] == selected_model_name)
+        model_options.append(selected_model)
+    stop_event = threading.Event()
+    if st.button("Stop Processing"):
+        stop_event.set()
+    if st.button("Process Streams") and not stop_event.is_set():
+        # use ffmpeg to stream the video
+        video_buffers = [deque(maxlen=2) for _ in range(len(stream_list))]
+        threads = []
+        def process_video(video_url, index, model_option, stop_event):
+            ##ffmpeg to read the stream
+            command = ['ffmpeg', '-i', video_url, '-f', 'image2pipe', '-pix_fmt', 'bgr24', '-vcodec', 'rawvideo', '-']
+            process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=False)
+            frame_count = 0
+            while not stop_event.is_set():
+                raw_frame = process.stdout.read(640 * 480 * 3)
+                if len(raw_frame) == 0:
+                    break
+                frame = np.frombuffer(raw_frame, np.uint8).reshape(480, 640, 3)
+                if frame_count % frame_skip == 0:
                     processed_frame, prediction_response = run_model_inference(frame, model_option)
-
                     if prediction_response:
-                        # Append prediction results to JSON responses
                         json_responses.append(json_format.MessageToJson(prediction_response))
-
-                    # Convert the frame from BGR to RGB (for displaying in Streamlit)
                     rgb_frame = cv2.cvtColor(processed_frame, cv2.COLOR_BGR2RGB)
-
-                    # Display the processed frame
-                    frame_placeholder.image(rgb_frame, caption="Streaming Frame")
-
-                pipe.terminate()
-
-            # Start the streaming thread
-            thread = threading.Thread(target=process_stream, args=(stream_url, stop_event))
+                    video_buffers[index].append(rgb_frame)
+                frame_count += 1
+            process.kill()
+        for index, (video_url, model_option) in enumerate(zip(stream_list, model_options)):
+            thread = threading.Thread(target=process_video, args=(video_url, index, model_option, stop_event))
             thread.start()
-
-            # Stop processing button
-            if st.button("Stop Stream"):
-                stop_event.set()
-                thread.join()
-
+            threads.append(thread)
+        while any(thread.is_alive() for thread in threads):
+            grid_frames = []
+            for index in range(len(video_buffers)):
+                if len(video_buffers[index]) > 0:
+                    grid_frames.append(video_buffers[index][-1])
+            if grid_frames:
+                if len(grid_frames) == 1:
+                    grid_image = grid_frames[0]
+                else:
+                    if len(grid_frames) % 2 != 0:
+                        blank_frame = np.zeros_like(grid_frames[-1])
+                        grid_frames.append(blank_frame)
+                    grid_image = np.concatenate([np.concatenate(grid_frames[i:i + 2], axis=1) for i in range(0, len(grid_frames), 2)], axis=0)
+                st.image(grid_image, caption="Processed Video Frames")
+            time.sleep(0.1)
+        for thread in threads:
+            thread.join()
+        st.success("Video processing completed!")
+    verify_json_responses()
 else:
     # Input for multiple video URLs with prepopulated example URLs
     video_urls = st.text_area("Enter video URLs (one per line):",
@@ -195,55 +181,100 @@ else:
     model_options = []
     for idx, url in enumerate(url_list):
         model_names = [model["Name"] for model in available_models]
-        selected_model_name = st.selectbox(f"Select a model for Video {idx+1}", model_names, key=f"model_{idx}")
+        selected_model_name = st.selectbox(f"Select a model for Video {idx + 1}:", model_names, key=f"model_{idx}")
         selected_model = next(model for model in available_models if model["Name"] == selected_model_name)
         model_options.append(selected_model)
 
-    if st.button("Process Videos"):
-        video_buffers = [deque(maxlen=20) for _ in range(len(url_list))]  # Buffer for storing recent frames
+    # Event to stop processing
+    stop_event = threading.Event()
+
+    # Stop processing button
+    if st.button("Stop Processing"):
+        stop_event.set()
+
+    # Process video button
+    if st.button("Process Videos") and not stop_event.is_set():
+        frame_placeholder = st.empty()
+
+        # Initialize a list to hold buffers and threads
+        video_buffers = [deque(maxlen=2) for _ in range(len(url_list))]  # Buffer for the latest 2 frames
         threads = []
-        stop_event = threading.Event()
 
         # Function to process each video
         def process_video(video_url, index, model_option, stop_event):
             video_capture = cv2.VideoCapture(video_url)
 
-            frame_count = 0  # Counter for frames processed
-            frame_placeholder = st.empty()  # Placeholder for displaying video frames
+            if not video_capture.isOpened():
+                st.error(f"Error: Could not open video at {video_url}.")
+                return
 
-            while True:
-                if stop_event.is_set():
-                    break
+            frame_count = 0  # Initialize frame count
 
+            while video_capture.isOpened() and not stop_event.is_set():
                 ret, frame = video_capture.read()
-                if not ret:
-                    break
+                frame = cv2.resize(frame, (640, 480))
 
-                # Run model inference on selected frames
+                if not ret:
+                    break  # Stop the loop when no more frames
+
+                # Only process frames based on the user-selected frame skip
                 if frame_count % frame_skip == 0:
+                    # Run inference on the frame with the selected model
                     processed_frame, prediction_response = run_model_inference(frame, model_option)
-                    video_buffers[index].append(processed_frame)
 
                     if prediction_response:
+                        # Append prediction results to JSON responses
                         json_responses.append(json_format.MessageToJson(prediction_response))
 
-                    # Display the processed frame
+                    # Convert the frame from BGR to RGB (for displaying in Streamlit)
                     rgb_frame = cv2.cvtColor(processed_frame, cv2.COLOR_BGR2RGB)
-                    frame_placeholder.image(rgb_frame, caption=f"Processed Video Frame from {video_url}")
 
-                frame_count += 1  # Increment frame count
+                    # Add the frame to the buffer
+                    video_buffers[index].append(rgb_frame)
+
+                frame_count += 1
 
             video_capture.release()
 
-        # Start processing videos
-        for idx, (url, model_option) in enumerate(zip(url_list, model_options)):
-            thread = threading.Thread(target=process_video, args=(url, idx, model_option, stop_event))
-            threads.append(thread)
+        # Start threads for each video URL with their corresponding model option
+        for index, (video_url, model_option) in enumerate(zip(url_list, model_options)):
+            thread = threading.Thread(target=process_video, args=(video_url, index, model_option, stop_event))
             thread.start()
+            threads.append(thread)
 
-        # Wait for all threads to complete
+        # Monitor threads and update the grid image
+        while any(thread.is_alive() for thread in threads):
+            grid_frames = []
+
+            for index in range(len(video_buffers)):
+                if len(video_buffers[index]) > 0:
+                    grid_frames.append(video_buffers[index][-1])  # Append the latest frame
+
+            if grid_frames:
+                if len(grid_frames) == 1:
+                    grid_image = grid_frames[0]  # Only one frame, show it directly
+                else:
+                    # Create grid layout (2 frames per row)
+                    if len(grid_frames) % 2 != 0:
+                        blank_frame = np.zeros_like(grid_frames[-1])  # Create a blank frame
+                        grid_frames.append(blank_frame)  # Add the blank frame if odd
+
+                    grid_image = np.concatenate([np.concatenate(grid_frames[i:i + 2], axis=1) for i in range(0, len(grid_frames), 2)], axis=0)
+
+                frame_placeholder.image(grid_image, caption="Processed Video Frames")
+
+            time.sleep(0.1)
+
+        # Ensure all threads are finished
         for thread in threads:
             thread.join()
 
-# Display JSON results
-display_json_responses()
+        st.success("Video processing completed!")
+
+    verify_json_responses()
+
+    # Display the processed JSON responses in a collapsible section
+    if st.checkbox("Show JSON Results", value=False):
+        st.subheader("Model Predictions (JSON Responses)")
+        for idx, response in enumerate(json_responses):
+            st.json(response)
