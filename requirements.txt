@@ -1,5 +1,5 @@
 protobuf==5.27.3
-clarifai-grpc==9.8.8
+clarifai-grpc==10.8.8
 clarifai==10.9.1
 streamlit==1.24.0
 opencv-python-headless
