@@ -287,7 +287,7 @@ else:
             while video_capture.isOpened() and not stop_event.is_set():
                 ret, frame = video_capture.read()
                 frame = cv2.resize(frame, (320, 240))
-                previous_response = None
+                #previous_response = None
 
                 if not ret:
                     break  # Stop the loop when no more frames
@@ -296,7 +296,7 @@ else:
                 if frame_count % frame_skip == 0:
                     # Run inference on the frame with the selected model
                     processed_frame, prediction_response = run_model_inference(frame, model_option)
-                    previous_response = prediction_response
+                    #previous_response = prediction_response
 
                     if prediction_response:
                         # Append prediction results to JSON responses
@@ -307,11 +307,11 @@ else:
 
                     # Add the frame to the buffer
                     video_buffers[index].append(rgb_frame)
-                else:
-                    processed_frame, prediction_response = redraw_detections(previous_response, frame, model_option)
-                    previous_response = prediction_response
-                    rgb_frame = cv2.cvtColor(processed_frame, cv2.COLOR_BGR2RGB)
-                    video_buffers[index].append(rgb_frame)
+                # else:
+                #     processed_frame, prediction_response = redraw_detections(previous_response, frame, model_option)
+                #     previous_response = prediction_response
+                #     rgb_frame = cv2.cvtColor(processed_frame, cv2.COLOR_BGR2RGB)
+                #     video_buffers[index].append(rgb_frame)
 
 
                 frame_count += 1
@@ -346,7 +346,7 @@ else:
 
                 frame_placeholder.image(grid_image, caption="Processed Video Frames")
 
-            time.sleep(0.1)
+            time.sleep(0.01)
 
         # Ensure all threads are finished
         for thread in threads:
