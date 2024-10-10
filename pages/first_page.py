@@ -24,18 +24,21 @@ def list_models():
         model_url = f"https://clarifai.com/{userDataObject.user_id}/{userDataObject.app_id}/models/{model.id}"
         _umod = {"Name": model.id, "URL": model_url, "type": "User"}
         usermodels.append(_umod)
-    return usermodels + list_community_models()
+    return list_community_models() + usermodels + list_custom_python_models()
 
 def list_community_models():
-    predefined_model_urls = [
+   return [
         {"Name": "General-Image-Detection", "URL": "https://clarifai.com/clarifai/main/models/general-image-detection", "type": "Community"},
         {"Name": "Face Detection", "URL": "https://clarifai.com/clarifai/main/models/face-detection", "type": "Community"},
-        {"Name": "Disable Detections", "URL": "xx", "type": "Disabled"},
         {"Name": "Weapon Detection", "URL": "https://clarifai.com/clarifai/main/models/weapon-detection", "type": "Community"},
         {"Name": "Vehicle Detection", "URL": "https://clarifai.com/clarifai/Roundabout-Aerial-Images-for-Vehicles-Det-Kaggle/models/vehicle-detector-alpha-x", "type": "Community"},
-        {"Name": "Movement", "URL": "xx", "type": "Movement"}
     ]
-    return predefined_model_urls
+
+def list_custom_python_models():
+    return [
+        {"Name": "Movement", "URL": "xx", "type": "Movement"},
+        {"Name": "Disable Detections", "URL": "xx", "type": "Disabled"}
+    ]
 
 def movement_detection(overlay, overlay_counter, background_subtractor, frame, threshold=25):
     _frame = frame.copy()
@@ -67,7 +70,7 @@ def movement_detection(overlay, overlay_counter, background_subtractor, frame, t
       return overlay, overlay_counter, _frame, None
 
 
-def draw_box_corners(frame, left, top, right, bottom, color, thickness=2, corner_length=10):
+def draw_box_corners(frame, left, top, right, bottom, color, thickness=1, corner_length=15):
     # Top-left corner
     cv2.line(frame, (left, top), (left + corner_length, top), color, thickness)  # horizontal
     cv2.line(frame, (left, top), (left, top + corner_length), color, thickness)  # vertical
@@ -87,6 +90,7 @@ def draw_box_corners(frame, left, top, right, bottom, color, thickness=2, corner
 def run_model_inference(background_subtractor, overlay, overlay_counter, frame, model_option, color=(0, 255, 0)):
     try:
       if model_option['type'] == "Disabled":
+          cv2.text(frame, "Detections Disabled", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
           return overlay, overlay_counter, frame, None
       elif model_option['type'] == "Movement":
           return movement_detection(background_subtractor, overlay, overlay_counter, frame, threshold=25)
@@ -129,6 +133,7 @@ def run_model_inference(background_subtractor, overlay, overlay_counter, frame, 
         return overlay, overlay_counter, _frame, prediction_response
     except Exception as e:
       st.success(e)
+      cv2.text(frame, f"Error: {e}", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
       return overlay, overlay_counter, frame, None
 
 def redraw_detections(previous_response, frame, model_option, color=(0, 255, 0)):
