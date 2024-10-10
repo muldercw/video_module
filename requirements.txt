@@ -1,5 +1,5 @@
 clarifai-grpc==10.8.8
-clarifai==10.8.8
-streamlit==1.24.0
+clarifai==10.9.0
+streamlit
 opencv-python-headless
 numpy
