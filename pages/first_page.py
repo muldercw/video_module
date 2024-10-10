@@ -40,22 +40,59 @@ def list_custom_python_models():
         {"Name": "Disable Detections", "URL": "xx", "type": "Disabled"}
     ]
 
-def movement_detection(overlay, overlay_counter, background_subtractor, frame, threshold=25):
-    if not isinstance(frame, np.ndarray):
+def compensate_camera_motion(prev_frame, current_frame):
+    # Convert frames to grayscale for feature matching
+    gray_prev = cv2.cvtColor(prev_frame, cv2.COLOR_BGR2GRAY)
+    gray_current = cv2.cvtColor(current_frame, cv2.COLOR_BGR2GRAY)
+
+    # Initialize ORB detector
+    orb = cv2.ORB_create()
+
+    # Find the keypoints and descriptors with ORB
+    keypoints_prev, descriptors_prev = orb.detectAndCompute(gray_prev, None)
+    keypoints_current, descriptors_current = orb.detectAndCompute(gray_current, None)
+
+    # Match descriptors using BFMatcher
+    bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
+    matches = bf.match(descriptors_prev, descriptors_current)
+
+    # Sort matches by distance (best matches first)
+    matches = sorted(matches, key=lambda x: x.distance)
+
+    # Extract matched keypoints
+    points_prev = np.float32([keypoints_prev[m.queryIdx].pt for m in matches])
+    points_current = np.float32([keypoints_current[m.trainIdx].pt for m in matches])
+
+    # Find the transformation matrix for camera motion compensation
+    H, _ = cv2.findHomography(points_current, points_prev, cv2.RANSAC)
+
+    # Warp the current frame to align with the previous frame
+    stabilized_frame = cv2.warpPerspective(current_frame, H, (current_frame.shape[1], current_frame.shape[0]))
+
+    return stabilized_frame
+
+def movement_detection(overlay, overlay_counter, background_subtractor, prev_frame, current_frame, threshold=25):
+    if not isinstance(current_frame, np.ndarray):
         raise ValueError("The 'frame' is not a valid numpy array.")
     
-    _frame = frame.copy()
+    _frame = current_frame.copy()
     overlay_decay = 3
 
     try:
+        # Compensate for camera motion before applying background subtraction
+        if prev_frame is not None:
+            stabilized_frame = compensate_camera_motion(prev_frame, current_frame)
+        else:
+            stabilized_frame = current_frame.copy()
+
         # Ensure overlay is properly initialized
         if overlay is None:
             overlay = np.zeros_like(_frame)
         elif not isinstance(overlay, np.ndarray):
             overlay = np.zeros_like(_frame)
 
-        # Apply background subtraction and process the mask
-        foreground_mask = background_subtractor.apply(_frame)
+        # Apply background subtraction to stabilized frame
+        foreground_mask = background_subtractor.apply(stabilized_frame)
         kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
         filtered_mask = cv2.morphologyEx(foreground_mask, cv2.MORPH_CLOSE, kernel)  # Closing to fill gaps
         filtered_mask = cv2.morphologyEx(filtered_mask, cv2.MORPH_OPEN, kernel)     # Opening to remove noise
@@ -102,6 +139,7 @@ def movement_detection(overlay, overlay_counter, background_subtractor, frame, t
 
 
 
+
 def draw_box_corners(frame, left, top, right, bottom, color, thickness=1, corner_length=15):
     # Top-left corner
     cv2.line(frame, (left, top), (left + corner_length, top), color, thickness)  # horizontal
@@ -119,7 +157,7 @@ def draw_box_corners(frame, left, top, right, bottom, color, thickness=1, corner
     cv2.line(frame, (right, bottom), (right - corner_length, bottom), color, thickness)  # horizontal
     cv2.line(frame, (right, bottom), (right, bottom - corner_length), color, thickness)  # vertical
 
-def run_model_inference(background_subtractor, overlay, overlay_counter, frame, model_option, color=(0, 255, 0)):
+def run_model_inference(background_subtractor, overlay, overlay_counter, prev_frame, frame, model_option, color=(0, 255, 0)):
     try:
       if model_option['type'] == "Disabled":
           _disabled_frame = frame.copy()
@@ -279,6 +317,7 @@ elif video_option == "Streaming Video":
             overlay = None
             overlay_decay = 3  
             overlay_counter = 0
+            prev_frame = None
             try:##ffmpeg to read the stream
               command = ['ffmpeg', '-i', video_url, '-f', 'image2pipe', '-pix_fmt', 'bgr24', '-vcodec', 'rawvideo', '-']
               process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=False)
@@ -288,13 +327,16 @@ elif video_option == "Streaming Video":
                   if len(raw_frame) == 0:
                       break
                   frame = np.frombuffer(raw_frame, np.uint8).reshape(480, 640, 3)
+                  if prev_frame is None:
+                      prev_frame = frame
                   if frame_count % frame_skip == 0:
-                      overlay, overlay_counter, processed_frame, prediction_response = run_model_inference(background_subtractor, overlay, overlay_counter, frame, model_option)
+                      overlay, overlay_counter, processed_frame, prediction_response = run_model_inference(background_subtractor, overlay, overlay_counter, prev_frame, frame, model_option)
                       if prediction_response:
                           json_responses.append(json_format.MessageToJson(prediction_response))
                       rgb_frame = cv2.cvtColor(processed_frame, cv2.COLOR_BGR2RGB)
                       video_buffers[index].append(rgb_frame)
                   frame_count += 1
+                  prev_frame = frame
               process.kill()
             except Exception as e:
               print(e)
@@ -365,6 +407,7 @@ else:
               overlay = None
               overlay_decay = 3  
               overlay_counter = 0
+              prev_frame = None
               video_capture = cv2.VideoCapture(video_url)
               if not video_capture.isOpened():
                   st.error(f"Error: Could not open video at {video_url}.")
@@ -376,6 +419,8 @@ else:
                   ret, frame = video_capture.read()
                   frame = cv2.resize(frame, (320, 240))
                   #previous_response = None
+                  if prev_frame is None:
+                      prev_frame = frame
 
                   if not ret:
                       break  # Stop the loop when no more frames
@@ -383,7 +428,7 @@ else:
                   # Only process frames based on the user-selected frame skip
                   if frame_count % frame_skip == 0:
                       # Run inference on the frame with the selected model
-                      overlay, overlay_counter, processed_frame, prediction_response = run_model_inference(background_subtractor, overlay, overlay_counter, frame, model_option)
+                      overlay, overlay_counter, processed_frame, prediction_response = run_model_inference(background_subtractor, overlay, overlay_counter, prev_frame, frame, model_option)
                       #previous_response = prediction_response
 
                       if prediction_response:
@@ -403,6 +448,7 @@ else:
 
 
                   frame_count += 1
+                  prev_frame = frame
 
               video_capture.release()
 
