@@ -231,7 +231,7 @@ else:
         frame_placeholder = st.empty()
 
         # Initialize a list to hold buffers and threads
-        video_buffers = [deque(maxlen=2) for _ in range(len(url_list))]  # Buffer for the latest 2 frames
+        video_buffers = [deque(maxlen=6) for _ in range(len(url_list))]  # Buffer for the latest 2 frames
         threads = []
 
         # Function to process each video
@@ -246,7 +246,7 @@ else:
 
             while video_capture.isOpened() and not stop_event.is_set():
                 ret, frame = video_capture.read()
-                frame = cv2.resize(frame, (640, 480))
+                frame = cv2.resize(frame, (320, 240))
 
                 if not ret:
                     break  # Stop the loop when no more frames
@@ -265,6 +265,9 @@ else:
 
                     # Add the frame to the buffer
                     video_buffers[index].append(rgb_frame)
+                else:
+                    video_buffers[index].append(video_buffers[index][-1] if video_buffers[index] else frame)
+
 
                 frame_count += 1
 
@@ -288,16 +291,17 @@ else:
                 if len(grid_frames) == 1:
                     grid_image = grid_frames[0]  # Only one frame, show it directly
                 else:
-                    # Create grid layout (2 frames per row)
-                    if len(grid_frames) % 2 != 0:
-                        blank_frame = np.zeros_like(grid_frames[-1])  # Create a blank frame
-                        grid_frames.append(blank_frame)  # Add the blank frame if odd
+                    # Create grid layout (4 frames per row)
+                    if len(grid_frames) % 4 != 0:
+                      blank_frame = np.zeros_like(grid_frames[-1])  # Create a blank frame
+                      while len(grid_frames) % 4 != 0:
+                        grid_frames.append(blank_frame)  # Add blank frames to make it a multiple of 4
 
-                    grid_image = np.concatenate([np.concatenate(grid_frames[i:i + 2], axis=1) for i in range(0, len(grid_frames), 2)], axis=0)
+                    grid_image = np.concatenate([np.concatenate(grid_frames[i:i + 4], axis=1) for i in range(0, len(grid_frames), 4)], axis=0)
 
                 frame_placeholder.image(grid_image, caption="Processed Video Frames")
 
-            time.sleep(0.1)
+            time.sleep(0.01)
 
         # Ensure all threads are finished
         for thread in threads:
