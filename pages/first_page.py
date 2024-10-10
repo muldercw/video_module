@@ -61,7 +61,7 @@ def movement_detection(overlay, overlay_counter, background_subtractor, frame, t
           combined_frame = frame
       return overlay, overlay_counter, combined_frame, None
     except Exception as e:
-      print(e)
+      st.success(e)
       return overlay, overlay_counter, frame, None
 
 
@@ -83,47 +83,51 @@ def draw_box_corners(frame, left, top, right, bottom, color, thickness=2, corner
     cv2.line(frame, (right, bottom), (right, bottom - corner_length), color, thickness)  # vertical
 
 def run_model_inference(background_subtractor,overlay, overlay_counter, frame, model_option, color=(0, 255, 0)):
-    if model_option['type'] == "Disabled":
-        return overlay, overlay_counter, frame, None
-    if model_option['type'] == "Movement":
-        return movement_detection(background_subtractor,overlay, overlay_counter, frame, threshold=25)
+    try:
+      if model_option['type'] == "Disabled":
+          return overlay, overlay_counter, frame, None
+      if model_option['type'] == "Movement":
+          return movement_detection(background_subtractor,overlay, overlay_counter, frame, threshold=25)
 
-    _frame = frame.copy()
-    frame_bytes = cv2.imencode('.jpg', frame)[1].tobytes()
-    model_url = model_option['URL']
-    detector_model = Model(url=model_url)
+      _frame = frame.copy()
+      frame_bytes = cv2.imencode('.jpg', frame)[1].tobytes()
+      model_url = model_option['URL']
+      detector_model = Model(url=model_url)
 
-    # Put model name at top
-    cv2.putText(_frame, model_option['Name'], (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2, cv2.LINE_AA)
+      # Put model name at top
+      cv2.putText(_frame, model_option['Name'], (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2, cv2.LINE_AA)
 
-    # Perform prediction
-    prediction_response = detector_model.predict_by_bytes(frame_bytes, input_type="image")
-    regions = prediction_response.outputs[0].data.regions
+      # Perform prediction
+      prediction_response = detector_model.predict_by_bytes(frame_bytes, input_type="image")
+      regions = prediction_response.outputs[0].data.regions
 
-    for region in regions:
-        top_row = round(region.region_info.bounding_box.top_row, 3)
-        left_col = round(region.region_info.bounding_box.left_col, 3)
-        bottom_row = round(region.region_info.bounding_box.bottom_row, 3)
-        right_col = round(region.region_info.bounding_box.right_col, 3)
+      for region in regions:
+          top_row = round(region.region_info.bounding_box.top_row, 3)
+          left_col = round(region.region_info.bounding_box.left_col, 3)
+          bottom_row = round(region.region_info.bounding_box.bottom_row, 3)
+          right_col = round(region.region_info.bounding_box.right_col, 3)
 
-        # Get absolute coordinates
-        left = int(left_col * frame.shape[1])
-        top = int(top_row * frame.shape[0])
-        right = int(right_col * frame.shape[1])
-        bottom = int(bottom_row * frame.shape[0])
+          # Get absolute coordinates
+          left = int(left_col * frame.shape[1])
+          top = int(top_row * frame.shape[0])
+          right = int(right_col * frame.shape[1])
+          bottom = int(bottom_row * frame.shape[0])
 
-        # Draw corners of the box
-        draw_box_corners(_frame, left, top, right, bottom, color)
+          # Draw corners of the box
+          draw_box_corners(_frame, left, top, right, bottom, color)
 
-        for concept in region.data.concepts:
-            name = concept.name
-            value = round(concept.value, 4)
+          for concept in region.data.concepts:
+              name = concept.name
+              value = round(concept.value, 4)
 
-            # Place text between top corners
-            text_position = (left + (right - left) // 4, top - 10)
-            cv2.putText(_frame, f"{name}:{value}", text_position, cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2, cv2.LINE_AA)
+              # Place text between top corners
+              text_position = (left + (right - left) // 4, top - 10)
+              cv2.putText(_frame, f"{name}:{value}", text_position, cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2, cv2.LINE_AA)
 
-    return _frame, prediction_response
+      return _frame, prediction_response
+    except Exception as e:
+      st.success(e)
+      return overlay, overlay_counter, frame, None
 
 def redraw_detections(previous_response, frame, model_option, color=(0, 255, 0)):
     if model_option['type'] == "disabled":
