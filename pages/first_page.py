@@ -92,6 +92,47 @@ def run_model_inference(frame, model_option, color=(0, 255, 0)):
 
     return _frame, prediction_response
 
+def redraw_detections(previous_response, frame, model_option, color=(0, 255, 0)):
+    if model_option['type'] == "disabled":
+        return frame, None
+
+    _frame = frame.copy()
+    frame_bytes = cv2.imencode('.jpg', frame)[1].tobytes()
+    model_url = model_option['URL']
+    detector_model = Model(url=model_url)
+
+    # Put model name at top
+    cv2.putText(_frame, model_option['Name'], (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2, cv2.LINE_AA)
+
+    # Perform prediction
+    prediction_response = previous_response
+    regions = prediction_response.outputs[0].data.regions
+
+    for region in regions:
+        top_row = round(region.region_info.bounding_box.top_row, 3)
+        left_col = round(region.region_info.bounding_box.left_col, 3)
+        bottom_row = round(region.region_info.bounding_box.bottom_row, 3)
+        right_col = round(region.region_info.bounding_box.right_col, 3)
+
+        # Get absolute coordinates
+        left = int(left_col * frame.shape[1])
+        top = int(top_row * frame.shape[0])
+        right = int(right_col * frame.shape[1])
+        bottom = int(bottom_row * frame.shape[0])
+
+        # Draw corners of the box
+        draw_box_corners(_frame, left, top, right, bottom, color)
+
+        for concept in region.data.concepts:
+            name = concept.name
+            value = round(concept.value, 4)
+
+            # Place text between top corners
+            text_position = (left + (right - left) // 4, top - 10)
+            cv2.putText(_frame, f"{name}:{value}", text_position, cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2, cv2.LINE_AA)
+
+    return _frame, prediction_response
+
 def verify_json_responses():
     if st.checkbox("Show JSON Results", value=False):
         st.subheader("Model Predictions (JSON Responses)")
@@ -237,16 +278,16 @@ else:
         # Function to process each video
         def process_video(video_url, index, model_option, stop_event):
             video_capture = cv2.VideoCapture(video_url)
-
             if not video_capture.isOpened():
                 st.error(f"Error: Could not open video at {video_url}.")
                 return
-
+          
             frame_count = 0  # Initialize frame count
 
             while video_capture.isOpened() and not stop_event.is_set():
                 ret, frame = video_capture.read()
                 frame = cv2.resize(frame, (320, 240))
+                previous_response = None
 
                 if not ret:
                     break  # Stop the loop when no more frames
@@ -255,6 +296,7 @@ else:
                 if frame_count % frame_skip == 0:
                     # Run inference on the frame with the selected model
                     processed_frame, prediction_response = run_model_inference(frame, model_option)
+                    previous_response = prediction_response
 
                     if prediction_response:
                         # Append prediction results to JSON responses
@@ -266,7 +308,10 @@ else:
                     # Add the frame to the buffer
                     video_buffers[index].append(rgb_frame)
                 else:
-                    video_buffers[index].append(video_buffers[index][-1] if video_buffers[index] else frame)
+                    processed_frame, prediction_response = redraw_detections(previous_response, frame, model_option)
+                    previous_response = prediction_response
+                    rgb_frame = cv2.cvtColor(processed_frame, cv2.COLOR_BGR2RGB)
+                    video_buffers[index].append(rgb_frame)
 
 
                 frame_count += 1
@@ -301,7 +346,7 @@ else:
 
                 frame_placeholder.image(grid_image, caption="Processed Video Frames")
 
-            time.sleep(0.01)
+            time.sleep(0.1)
 
         # Ensure all threads are finished
         for thread in threads:
