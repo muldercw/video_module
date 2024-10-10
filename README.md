@@ -1,16 +1,18 @@
-![Clarifai logo](https://www.clarifai.com/hs-fs/hubfs/logo/Clarifai/clarifai-740x150.png?width=240)
+Video Processing & Monitoring Application
+This is a real-time video processing and monitoring web application built using Streamlit, OpenCV, and Clarifai. The app allows users to process videos from different sources, such as URLs, webcams, or streaming URLs, and apply object detection models to the video frames.
 
-# Clarifai App Module Template
+The app offers:
 
-This is a template repository to make it easy to get started creating a UI module with Clarifai.
-
-
-## To use this repo
-
-1. Click the "Use this template" green button on github to make a repo from this repo template and give it a name of the format module-{XYZ} filling in the XYZ portion.
-2. Clone the new repo as normal to your development environment.
-3. `pip install -r requirements.txt` to make sure you have all the Python packages installed. Add any new packages to this requirements.txt file that you add during development.
-4. Update the README.md to capture what your new module will do.
-5. Rename the pages/*.py files as you desire and start filling them in to implement your module.
-6. After you're tried things out locally, push your changes to github and get the git commit URL from there in order to create a module in Clarifai.
-7. Go to any app you can create in within Clarifai, select Modules on the left and "Create Module" button, then follow the steps.
+Support for multiple video input types (Standard Video URLs, Webcam, and Streaming URLs).
+The ability to select different object detection models.
+A flexible interface for selecting the number of frames to skip.
+Real-time display of processed frames in a grid.
+JSON responses with prediction results for detected objects.
+Stop and start functionality for video processing.
+Features
+Real-time Video Processing: Use any video source (URLs, webcam, or streams) to perform object detection in real-time.
+Object Detection Models: Choose from various object detection models hosted on Clarifai.
+Frame Skipping: Adjust the frame skip value to control the processing speed and performance.
+Multiple Stream Support: Process and monitor multiple video streams simultaneously.
+JSON Response Display: View the model's JSON predictions and detection results directly in the app.
+Background Subtraction: Detect foreground objects using background subtraction with OpenCV's MOG2 algorithm.
