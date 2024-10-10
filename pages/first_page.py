@@ -24,22 +24,21 @@ def list_models():
 
 def list_community_models():
     predefined_model_urls = [{"Name": "General-Image-Detection", "URL": "https://clarifai.com/clarifai/main/models/general-image-detection", "type":"Community"},
-                             {"Name": "Face Detection", "URL": "https://clarifai.com/clarifai/main/models/face-detection", "type":"Community"}]
+                             {"Name": "Face Detection", "URL": "https://clarifai.com/clarifai/main/models/face-detection", "type":"ommunity"},
+                             {"Name": "Disable Detections", "URL": "xx", "type":"disabled"}]
     return predefined_model_urls
 
-
 def run_model_inference(frame, model_option):
+    if model_option['type'] == "disabled":
+        return frame, None
     _frame = frame.copy()
     frame_bytes = cv2.imencode('.jpg', frame)[1].tobytes()
-    # #_model = Model(model_id=model_option['Name'])
-    # #_model_versions = list(_model.list_versions())
     model_url = model_option['URL']
     detector_model = Model(url=model_url)
     cv2.putText(_frame, model_option['Name'], (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
     prediction_response = detector_model.predict_by_bytes(frame_bytes, input_type="image")
     regions = prediction_response.outputs[0].data.regions
     for region in regions:
-        # Accessing and rounding the bounding box values
         top_row = round(region.region_info.bounding_box.top_row, 3)
         left_col = round(region.region_info.bounding_box.left_col, 3)
         bottom_row = round(region.region_info.bounding_box.bottom_row, 3)
@@ -56,7 +55,6 @@ def run_model_inference(frame, model_option):
             cv2.rectangle(_frame, (int(left_col * frame.shape[1]), int(top_row * frame.shape[0])),
                                   (int(right_col * frame.shape[1]), int(bottom_row * frame.shape[0])), (0, 255, 0), 2)
     return _frame, prediction_response
-
 
 st.set_page_config(layout="wide")
 ClarifaiStreamlitCSS.insert_default_css(st)
@@ -108,85 +106,82 @@ else:
         selected_model = next(model for model in available_models if model["Name"] == selected_model_name)
         model_options.append(selected_model)
 
-    if st.button("Process Videos"):
-        if video_urls and len(model_options) == len(url_list):
-            # Create a placeholder for the grid
-            frame_placeholder = st.empty()
+    # Event to stop processing
+    stop_event = threading.Event()
 
-            # Initialize a list to hold buffers and threads
-            video_buffers = [deque(maxlen=2) for _ in range(len(url_list))]  # Buffer for the latest 2 frames
-            threads = []
+    # Stop processing button
+    if st.button("Stop Processing"):
+        stop_event.set()
 
-            # Function to process each video
-            def process_video(video_url, index, model_option):
-                video_capture = cv2.VideoCapture(video_url)
+    # Process video button
+    if st.button("Process Videos") and not stop_event.is_set():
+        frame_placeholder = st.empty()
 
-                if not video_capture.isOpened():
-                    st.error(f"Error: Could not open video at {video_url}.")
-                    return
+        # Initialize a list to hold buffers and threads
+        video_buffers = [deque(maxlen=2) for _ in range(len(url_list))]  # Buffer for the latest 2 frames
+        threads = []
 
-                frame_rate = int(video_capture.get(cv2.CAP_PROP_FPS))
-                frame_count = 0  # Initialize frame count
+        # Function to process each video
+        def process_video(video_url, index, model_option, stop_event):
+            video_capture = cv2.VideoCapture(video_url)
 
-                while video_capture.isOpened():
-                    ret, frame = video_capture.read()
-                    # resize the frame to 640x480
-                    frame = cv2.resize(frame, (640, 480))
+            if not video_capture.isOpened():
+                st.error(f"Error: Could not open video at {video_url}.")
+                return
 
-                    if not ret:
-                        break  # Stop the loop when no more frames
+            frame_count = 0  # Initialize frame count
 
-                    # Only process frames based on the user-selected frame skip
-                    if frame_count % frame_skip == 0:
-                        # Run inference on the frame with the selected model
-                        processed_frame, model_response = run_model_inference(frame, model_option)
+            while video_capture.isOpened() and not stop_event.is_set():
+                ret, frame = video_capture.read()
+                frame = cv2.resize(frame, (640, 480))
 
-                        # Convert the frame from BGR to RGB (for displaying in Streamlit)
-                        rgb_frame = cv2.cvtColor(processed_frame, cv2.COLOR_BGR2RGB)
+                if not ret:
+                    break  # Stop the loop when no more frames
 
-                        # Add the frame to the buffer
-                        video_buffers[index].append(rgb_frame)
+                # Only process frames based on the user-selected frame skip
+                if frame_count % frame_skip == 0:
+                    # Run inference on the frame with the selected model
+                    processed_frame, _ = run_model_inference(frame, model_option)
 
-                    frame_count += 1
+                    # Convert the frame from BGR to RGB (for displaying in Streamlit)
+                    rgb_frame = cv2.cvtColor(processed_frame, cv2.COLOR_BGR2RGB)
 
-                video_capture.release()
+                    # Add the frame to the buffer
+                    video_buffers[index].append(rgb_frame)
 
-            # Start threads for each video URL with their corresponding model option
-            for index, (video_url, model_option) in enumerate(zip(url_list, model_options)):
-                thread = threading.Thread(target=process_video, args=(video_url, index, model_option))
-                thread.start()
-                threads.append(thread)
+                frame_count += 1
 
-            # Monitor threads and update the grid image
-            while any(thread.is_alive() for thread in threads):
-                grid_frames = []
+            video_capture.release()
 
-                for index in range(len(video_buffers)):
-                    # If the buffer is filled, add the last frame to the grid
-                    if len(video_buffers[index]) > 0:
-                        grid_frames.append(video_buffers[index][-1])  # Append the latest frame
+        # Start threads for each video URL with their corresponding model option
+        for index, (video_url, model_option) in enumerate(zip(url_list, model_options)):
+            thread = threading.Thread(target=process_video, args=(video_url, index, model_option, stop_event))
+            thread.start()
+            threads.append(thread)
 
-                # Create a grid image from the frames
-                if grid_frames:
-                    # If there's an odd number of frames, duplicate the last frame for even grid
-                    if len(grid_frames) == 1:
-                        grid_image = grid_frames[0]  # Only one frame, show it directly
-                    else:
-                        # Create grid layout (2 frames per row)
-                        if len(grid_frames) % 2 != 0:
-                            blank_frame = np.zeros_like(grid_frames[-1])  # Create a blank frame
-                            grid_frames.append(blank_frame)  # Add the blank frame if odd
+        # Monitor threads and update the grid image
+        while any(thread.is_alive() for thread in threads):
+            grid_frames = []
 
-                        grid_image = np.concatenate([np.concatenate(grid_frames[i:i+2], axis=1) for i in range(0, len(grid_frames), 2)], axis=0)
+            for index in range(len(video_buffers)):
+                if len(video_buffers[index]) > 0:
+                    grid_frames.append(video_buffers[index][-1])  # Append the latest frame
 
-                    # Display the grid image
-                    frame_placeholder.image(grid_image, caption="Video Frames Grid")
+            if grid_frames:
+                if len(grid_frames) == 1:
+                    grid_image = grid_frames[0]  # Only one frame, show it directly
+                else:
+                    # Create grid layout (2 frames per row)
+                    if len(grid_frames) % 2 != 0:
+                        blank_frame = np.zeros_like(grid_frames[-1])  # Create a blank frame
+                        grid_frames.append(blank_frame)  # Add the blank frame if odd
 
-                time.sleep(0.1)  # Slight delay to avoid overwhelming the stream
+                    grid_image = np.concatenate([np.concatenate(grid_frames[i:i+2], axis=1) for i in range(0, len(grid_frames), 2)], axis=0)
 
-            # Wait for all threads to finish
-            for thread in threads:
-                thread.join()
+                frame_placeholder.image(grid_image, caption="Video Frames Grid")
 
-        else:
-            st.warning("Please provide valid video URLs and select models for each video.")
+            time.sleep(0.1)
+
+        # Wait for all threads to finish
+        for thread in threads:
+            thread.join()
