@@ -308,7 +308,7 @@ elif video_option == "Streaming Video":
         selected_model = next(model for model in available_models if model["Name"] == selected_model_name)
         model_options.append(selected_model)
     stop_event = threading.Event()
-    if st.button("Stop Processing", style="danger"):
+    if st.button("Stop Processing"):
         stop_event.set()
     if st.button("Process Streams") and not stop_event.is_set():
         # use ffmpeg to stream the video
