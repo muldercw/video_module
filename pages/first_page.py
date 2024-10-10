@@ -68,9 +68,9 @@ def movement_detection(overlay, overlay_counter, background_subtractor, frame, t
       return overlay, overlay_counter, combined_frame, None
     except Exception as e:
       st.error(e)
-      cv2.putText(_frame, f"Error: {e}", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
+      cv2.putText(_frame, f"{e}", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1, cv2.LINE_AA)
       return overlay, overlay_counter, _frame, None
-    return overlay, overlay_counter, _frame, None
+
 
 
 def draw_box_corners(frame, left, top, right, bottom, color, thickness=1, corner_length=15):
@@ -137,7 +137,7 @@ def run_model_inference(background_subtractor, overlay, overlay_counter, frame, 
         return overlay, overlay_counter, _frame, prediction_response
     except Exception as e:
       st.success(e)
-      cv2.putText(frame, f"Error: {e}", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
+      cv2.putText(frame, f"{e}", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 1, cv2.LINE_AA)
       return overlay, overlay_counter, frame, None
 
 def redraw_detections(previous_response, frame, model_option, color=(0, 255, 0)):
