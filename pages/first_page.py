@@ -53,7 +53,7 @@ def movement_detection(overlay, overlay_counter, background_subtractor, frame, t
             overlay = np.zeros_like(_frame)
         elif not isinstance(overlay, np.ndarray):
             overlay = np.zeros_like(_frame)
-            raise ValueError("The 'overlay' was not valid, initialized to a blank array.")
+           
 
         # Apply background subtraction and process the mask
         foreground_mask = background_subtractor.apply(_frame)
