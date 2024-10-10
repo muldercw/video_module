@@ -38,9 +38,10 @@ def list_community_models():
     return predefined_model_urls
 
 def movement_detection(overlay, overlay_counter, background_subtractor, frame, threshold=25):
+    _frame = frame.copy()
     overlay_decay = 3
     try:
-      foreground_mask = background_subtractor.apply(frame)
+      foreground_mask = background_subtractor.apply(_frame)
       kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
       filtered_mask = cv2.morphologyEx(foreground_mask, cv2.MORPH_CLOSE, kernel)  # Closing to fill gaps
       filtered_mask = cv2.morphologyEx(filtered_mask, cv2.MORPH_OPEN, kernel)     # Opening to remove noise
@@ -51,19 +52,19 @@ def movement_detection(overlay, overlay_counter, background_subtractor, frame, t
               largest_contour = max(contours, key=cv2.contourArea)
               x, y, w, h = cv2.boundingRect(largest_contour)
               if overlay is None:
-                  overlay = np.zeros_like(frame)
+                  overlay = np.zeros_like(_frame)
               cv2.rectangle(overlay, (x, y), (x + w, y + h), (0, 255, 0), 2)
               overlay_counter = overlay_decay
       if overlay_counter > 0:
-          combined_frame = cv2.addWeighted(frame, 1, overlay, 1, 0)
+          combined_frame = cv2.addWeighted(_frame, 1, overlay, 1, 0)
           overlay_counter -= 1
       else:
-          combined_frame = frame
+          combined_frame = _frame
       cv2.text(combined_frame, "Movement Detection", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
       return overlay, overlay_counter, combined_frame, None
     except Exception as e:
-      cv2.text(frame, f"Error: {e}", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
-      return overlay, overlay_counter, frame, None
+      cv2.text(_frame, f"Error: {e}", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
+      return overlay, overlay_counter, _frame, None
 
 
 def draw_box_corners(frame, left, top, right, bottom, color, thickness=2, corner_length=10):
