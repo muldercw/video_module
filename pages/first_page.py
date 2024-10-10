@@ -37,9 +37,8 @@ def list_community_models():
     ]
     return predefined_model_urls
 
-def movement_detection(frame, threshold=25):
+def movement_detection(overlay, overlay_counter, background_subtractor, frame, threshold=25):
     try:
-      global overlay, overlay_counter
       foreground_mask = background_subtractor.apply(frame)
       kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
       filtered_mask = cv2.morphologyEx(foreground_mask, cv2.MORPH_CLOSE, kernel)  # Closing to fill gaps
@@ -59,10 +58,10 @@ def movement_detection(frame, threshold=25):
           overlay_counter -= 1
       else:
           combined_frame = frame
-      return combined_frame, None
+      return overlay, overlay_counter, combined_frame, None
     except Exception as e:
       print(e)
-      return frame, None
+      return overlay, overlay_counter, frame, None
 
 
 def draw_box_corners(frame, left, top, right, bottom, color, thickness=2, corner_length=10):
@@ -82,11 +81,11 @@ def draw_box_corners(frame, left, top, right, bottom, color, thickness=2, corner
     cv2.line(frame, (right, bottom), (right - corner_length, bottom), color, thickness)  # horizontal
     cv2.line(frame, (right, bottom), (right, bottom - corner_length), color, thickness)  # vertical
 
-def run_model_inference(frame, model_option, color=(0, 255, 0)):
+def run_model_inference(background_subtractor,overlay, overlay_counter, frame, model_option, color=(0, 255, 0)):
     if model_option['type'] == "Disabled":
-        return frame, None
-    # if model_option['type'] == "Movement":
-    #     return movement_detection(frame, None)
+        return overlay, overlay_counter, frame, None
+    if model_option['type'] == "Movement":
+        return movement_detection(background_subtractor,overlay, overlay_counter, frame, None)
 
     _frame = frame.copy()
     frame_bytes = cv2.imencode('.jpg', frame)[1].tobytes()
@@ -244,7 +243,7 @@ elif video_option == "Streaming Video":
                       break
                   frame = np.frombuffer(raw_frame, np.uint8).reshape(480, 640, 3)
                   if frame_count % frame_skip == 0:
-                      processed_frame, prediction_response = run_model_inference(frame, model_option)
+                      overlay, overlay_counter, processed_frame, prediction_response = run_model_inference(background_subtractor, overlay, overlay_counter, frame, model_option)
                       if prediction_response:
                           json_responses.append(json_format.MessageToJson(prediction_response))
                       rgb_frame = cv2.cvtColor(processed_frame, cv2.COLOR_BGR2RGB)
@@ -333,7 +332,7 @@ else:
                 # Only process frames based on the user-selected frame skip
                 if frame_count % frame_skip == 0:
                     # Run inference on the frame with the selected model
-                    processed_frame, prediction_response = run_model_inference(frame, model_option)
+                    overlay, overlay_counter, processed_frame, prediction_response = run_model_inference(background_subtractor, overlay, overlay_counter, frame, model_option)
                     #previous_response = prediction_response
 
                     if prediction_response:
