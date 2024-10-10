@@ -373,8 +373,8 @@ else:
                                value="http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4\nhttp://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4")
 
     # Slider for frame skip selection
-    frame_skip = st.slider("Select how many frames to skip:", min_value=1, max_value=20, value=2)
-    det_threshold = st.slider("Select detection threshold:", min_value=1, max_value=100, value=25)
+    frame_skip = st.slider("Select how many frames to skip:", min_value=1, max_value=120, value=28)
+    det_threshold = st.slider("Select detection threshold:", min_value=0.01, max_value=1.00, value=0.5)
     # Obtain models from list_models()
     available_models = list_models()
 
@@ -391,7 +391,7 @@ else:
     stop_event = threading.Event()
 
     # Stop processing button
-    if st.button("Stop Processing"):
+    if st.button("Stop Processing", style="danger"):
         stop_event.set()
 
     # Process video button
