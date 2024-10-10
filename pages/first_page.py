@@ -82,7 +82,7 @@ def draw_box_corners(frame, left, top, right, bottom, color, thickness=2, corner
     cv2.line(frame, (right, bottom), (right - corner_length, bottom), color, thickness)  # horizontal
     cv2.line(frame, (right, bottom), (right, bottom - corner_length), color, thickness)  # vertical
 
-def run_model_inference(background_subtractor,overlay, overlay_counter, frame, model_option, color=(0, 255, 0)):
+def run_model_inference(background_subtractor, overlay, overlay_counter, frame, model_option, color=(0, 255, 0)):
     try:
       if model_option['type'] == "Disabled":
           return overlay, overlay_counter, frame, None
@@ -124,7 +124,7 @@ def run_model_inference(background_subtractor,overlay, overlay_counter, frame, m
               text_position = (left + (right - left) // 4, top - 10)
               cv2.putText(_frame, f"{name}:{value}", text_position, cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2, cv2.LINE_AA)
 
-      return _frame, prediction_response
+      return overlay, overlay_counter, _frame, prediction_response
     except Exception as e:
       st.success(e)
       return overlay, overlay_counter, frame, None
