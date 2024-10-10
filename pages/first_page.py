@@ -92,8 +92,9 @@ def draw_box_corners(frame, left, top, right, bottom, color, thickness=1, corner
 def run_model_inference(background_subtractor, overlay, overlay_counter, frame, model_option, color=(0, 255, 0)):
     try:
       if model_option['type'] == "Disabled":
-          cv2.text(frame, "Detections Disabled", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
-          return overlay, overlay_counter, frame, None
+          _disabled_frame = frame.copy()
+          cv2.text(_disabled_frame, "Detections Disabled", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+          return overlay, overlay_counter, _disabled_frame, None
       elif model_option['type'] == "Movement":
           return movement_detection(background_subtractor, overlay, overlay_counter, frame, threshold=25)
       else:
