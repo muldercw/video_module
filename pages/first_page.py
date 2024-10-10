@@ -13,13 +13,7 @@ from clarifai.client.app import App
 from clarifai.modules.css import ClarifaiStreamlitCSS
 from google.protobuf import json_format
 
-def install_ffmpeg():
-    try:
-        subprocess.check_call(['apt-get', 'update'])
-        subprocess.check_call(['apt-get', 'install', '-y', 'ffmpeg'])
-        st.success("FFmpeg installed successfully.")
-    except Exception as e:
-        st.error(f"Error installing FFmpeg: {str(e)}")
+
 
 def list_models():
     app_obj = App(user_id=userDataObject.user_id, app_id=userDataObject.app_id)
@@ -73,8 +67,7 @@ def verify_json_responses():
 st.set_page_config(layout="wide")
 ClarifaiStreamlitCSS.insert_default_css(st)
 
-# Install FFmpeg
-install_ffmpeg()
+
 
 # Authentication and Clarifai setup
 auth = ClarifaiAuthHelper.from_streamlit(st)
@@ -118,30 +111,34 @@ elif video_option == "Stream Video":
         selected_model = next(model for model in available_models if model["Name"] == selected_model_name)
         model_options.append(selected_model)
     stop_event = threading.Event()
-    if st.button("Stop Processing"):
+    if st.button("Stop Processing", style="danger"):
         stop_event.set()
     if st.button("Process Streams") and not stop_event.is_set():
         # use ffmpeg to stream the video
         video_buffers = [deque(maxlen=2) for _ in range(len(stream_list))]
         threads = []
         def process_video(video_url, index, model_option, stop_event):
-            ##ffmpeg to read the stream
-            command = ['ffmpeg', '-i', video_url, '-f', 'image2pipe', '-pix_fmt', 'bgr24', '-vcodec', 'rawvideo', '-']
-            process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=False)
-            frame_count = 0
-            while not stop_event.is_set():
-                raw_frame = process.stdout.read(640 * 480 * 3)
-                if len(raw_frame) == 0:
-                    break
-                frame = np.frombuffer(raw_frame, np.uint8).reshape(480, 640, 3)
-                if frame_count % frame_skip == 0:
-                    processed_frame, prediction_response = run_model_inference(frame, model_option)
-                    if prediction_response:
-                        json_responses.append(json_format.MessageToJson(prediction_response))
-                    rgb_frame = cv2.cvtColor(processed_frame, cv2.COLOR_BGR2RGB)
-                    video_buffers[index].append(rgb_frame)
-                frame_count += 1
-            process.kill()
+            try:##ffmpeg to read the stream
+              command = ['ffmpeg', '-i', video_url, '-f', 'image2pipe', '-pix_fmt', 'bgr24', '-vcodec', 'rawvideo', '-']
+              process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=False)
+              frame_count = 0
+              while not stop_event.is_set():
+                  raw_frame = process.stdout.read(640 * 480 * 3)
+                  if len(raw_frame) == 0:
+                      break
+                  frame = np.frombuffer(raw_frame, np.uint8).reshape(480, 640, 3)
+                  if frame_count % frame_skip == 0:
+                      processed_frame, prediction_response = run_model_inference(frame, model_option)
+                      if prediction_response:
+                          json_responses.append(json_format.MessageToJson(prediction_response))
+                      rgb_frame = cv2.cvtColor(processed_frame, cv2.COLOR_BGR2RGB)
+                      video_buffers[index].append(rgb_frame)
+                  frame_count += 1
+              process.kill()
+            except Exception as e:
+              print(e)
+              json_responses.append(f"Error {e} processing video at {video_url}")
+
         for index, (video_url, model_option) in enumerate(zip(stream_list, model_options)):
             thread = threading.Thread(target=process_video, args=(video_url, index, model_option, stop_event))
             thread.start()
@@ -273,8 +270,4 @@ else:
 
     verify_json_responses()
 
-    # Display the processed JSON responses in a collapsible section
-    if st.checkbox("Show JSON Results", value=False):
-        st.subheader("Model Predictions (JSON Responses)")
-        for idx, response in enumerate(json_responses):
-            st.json(response)
+  
