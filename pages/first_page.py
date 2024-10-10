@@ -115,22 +115,25 @@ json_responses = []
 
 # Section for playing and processing video frames
 st.subheader("Video Frame Processing")
-video_option = st.radio("Choose Video Input:", ("Standard Video File URLs"), horizontal=True) #, "Webcam", "Streaming Video URLs"
+video_option = st.radio("Choose Video Input:", ("Standard Video File URLs","Webcam"), horizontal=True) #, "Webcam", "Streaming Video URLs"
 
 if video_option == "Webcam":
     # Option to capture video from webcam
-    webcam_input = st.camera_input("Capture a frame from your webcam:")
-
+    enable = st.checkbox("Enable camera")
+    webcam_input = st.camera_input("Capture a frame from your webcam:", disabled=not enable)
     if webcam_input:
-        # Read the uploaded image
-        frame = cv2.imdecode(np.frombuffer(webcam_input.read(), np.uint8), cv2.IMREAD_COLOR)
+        st.image(webcam_input)
 
-        # Process the frame (if needed)
-        frame = cv2.putText(frame, "Webcam Frame", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv2.LINE_AA)
+    # if webcam_input:
+    #     # Read the uploaded image
+    #     frame = cv2.imdecode(np.frombuffer(webcam_input.read(), np.uint8), cv2.IMREAD_COLOR)
 
-        # Convert the frame from BGR to RGB (for displaying in Streamlit)
-        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        st.image(rgb_frame, caption="Processed Webcam Frame")
+    #     # Process the frame (if needed)
+    #     frame = cv2.putText(frame, "Webcam Frame", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv2.LINE_AA)
+
+    #     # Convert the frame from BGR to RGB (for displaying in Streamlit)
+    #     rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    #     st.image(rgb_frame, caption="Processed Webcam Frame")
 elif video_option == "Streaming Video":
     # Input for streaming video URL
     stream_urls = st.text_area("Enter video Streams (one per line):",
