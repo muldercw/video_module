@@ -391,7 +391,7 @@ else:
     stop_event = threading.Event()
 
     # Stop processing button
-    if st.button("Stop Processing", style="danger"):
+    if st.button("Stop Processing"):
         stop_event.set()
 
     # Process video button
