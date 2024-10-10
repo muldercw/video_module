@@ -61,7 +61,7 @@ def movement_detection(overlay, overlay_counter, background_subtractor, frame, t
           combined_frame = frame
       return overlay, overlay_counter, combined_frame, None
     except Exception as e:
-      st.success(e)
+      cv2.text(frame, f"Error: {e}", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
       return overlay, overlay_counter, frame, None
 
 
