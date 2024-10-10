@@ -53,7 +53,6 @@ def movement_detection(overlay, overlay_counter, background_subtractor, frame, t
             overlay = np.zeros_like(_frame)
         elif not isinstance(overlay, np.ndarray):
             overlay = np.zeros_like(_frame)
-           
 
         # Apply background subtraction and process the mask
         foreground_mask = background_subtractor.apply(_frame)
@@ -127,7 +126,7 @@ def run_model_inference(background_subtractor, overlay, overlay_counter, frame, 
           cv2.putText(_disabled_frame, "Detections Disabled", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
           return overlay, overlay_counter, _disabled_frame, None
       elif model_option['type'] == "Movement":
-          return movement_detection(background_subtractor, overlay, overlay_counter, frame, threshold=25)
+          return movement_detection(overlay, overlay_counter, background_subtractor, frame, threshold=25)
       else:
         _frame = frame.copy()
         frame_bytes = cv2.imencode('.jpg', frame)[1].tobytes()
