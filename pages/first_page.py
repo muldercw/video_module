@@ -35,13 +35,9 @@ def run_model_inference(frame, model_option):
     # #_model_versions = list(_model.list_versions())
     model_url = model_option['URL']
     detector_model = Model(url=model_url)
-    # #prediction_response = "testing"
-    # #cv2.putText(_frame, model_option['Name'], (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+    cv2.putText(_frame, model_option['Name'], (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
     prediction_response = detector_model.predict_by_bytes(frame_bytes, input_type="image")
-
-    # # Since we have one input, one output will exist here
     regions = prediction_response.outputs[0].data.regions
-
     for region in regions:
         # Accessing and rounding the bounding box values
         top_row = round(region.region_info.bounding_box.top_row, 3)
@@ -50,19 +46,17 @@ def run_model_inference(frame, model_option):
         right_col = round(region.region_info.bounding_box.right_col, 3)
 
         for concept in region.data.concepts:
-            # Accessing and rounding the concept value
             name = concept.name
             value = round(concept.value, 4)
-
             print(
                 (f"{name}: {value} BBox: {top_row}, {left_col}, {bottom_row}, {right_col}")
             )
+            cv2.putText(_frame, f"{name}:{value}", (int(left_col * frame.shape[1]), int(top_row * frame.shape[0]) - 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2, cv2.LINE_AA)
             cv2.rectangle(_frame, (int(left_col * frame.shape[1]), int(top_row * frame.shape[0])),
                                   (int(right_col * frame.shape[1]), int(bottom_row * frame.shape[0])), (0, 255, 0), 2)
-    return _frame, "Testing"
-    # Simulate model inference
-    #return cv2.putText(frame.copy(), model_option['Name'], (50, 100), cv2.FONT_HERSHEY_SIMPLEX,
-    ######                       1, (0, 255, 0), 2, cv2.LINE_AA), None
+    return _frame, prediction_response
+
 
 st.set_page_config(layout="wide")
 ClarifaiStreamlitCSS.insert_default_css(st)
