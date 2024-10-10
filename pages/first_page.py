@@ -29,6 +29,7 @@ def list_community_models():
 
 
 def run_model_inference(frame, model_option):
+    # Works
     # _frame = frame.copy()
     # #convert frame to bytes
     # frame_bytes = cv2.imencode('.jpg', frame)[1].tobytes()
