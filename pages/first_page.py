@@ -157,7 +157,7 @@ def draw_box_corners(frame, left, top, right, bottom, color, thickness=1, corner
     cv2.line(frame, (right, bottom), (right - corner_length, bottom), color, thickness)  # horizontal
     cv2.line(frame, (right, bottom), (right, bottom - corner_length), color, thickness)  # vertical
 
-def run_model_inference(background_subtractor, overlay, overlay_counter, prev_frame, frame, model_option, color=(0, 255, 0)):
+def run_model_inference(det_threshold, background_subtractor, overlay, overlay_counter, prev_frame, frame, model_option, color=(0, 255, 0)):
     try:
       if model_option['type'] == "Disabled":
           _disabled_frame = frame.copy()
@@ -191,15 +191,17 @@ def run_model_inference(background_subtractor, overlay, overlay_counter, prev_fr
             bottom = int(bottom_row * frame.shape[0])
 
             # Draw corners of the box
-            draw_box_corners(_frame, left, top, right, bottom, color)
+            #draw_box_corners(_frame, left, top, right, bottom, color)
 
             for concept in region.data.concepts:
                 name = concept.name
                 value = round(concept.value, 4)
-
+                if value < det_threshold:
+                    continue
                 # Place text between top corners
                 text_position = (left + (right - left) // 4, top - 10)
                 cv2.putText(_frame, f"{name}:{value}", text_position, cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2, cv2.LINE_AA)
+                draw_box_corners(_frame, left, top, right, bottom, color)
 
         return overlay, overlay_counter, _frame, prediction_response
     except Exception as e:
@@ -330,7 +332,7 @@ elif video_option == "Streaming Video":
                   if prev_frame is None:
                       prev_frame = frame
                   if frame_count % frame_skip == 0:
-                      overlay, overlay_counter, processed_frame, prediction_response = run_model_inference(background_subtractor, overlay, overlay_counter, prev_frame, frame, model_option)
+                      overlay, overlay_counter, processed_frame, prediction_response = run_model_inference(det_threshold, background_subtractor, overlay, overlay_counter, prev_frame, frame, model_option)
                       if prediction_response:
                           json_responses.append(json_format.MessageToJson(prediction_response))
                       rgb_frame = cv2.cvtColor(processed_frame, cv2.COLOR_BGR2RGB)
@@ -372,7 +374,7 @@ else:
 
     # Slider for frame skip selection
     frame_skip = st.slider("Select how many frames to skip:", min_value=1, max_value=20, value=2)
-
+    det_threshold = st.slider("Select detection threshold:", min_value=1, max_value=100, value=25)
     # Obtain models from list_models()
     available_models = list_models()
 
@@ -389,7 +391,7 @@ else:
     stop_event = threading.Event()
 
     # Stop processing button
-    if st.button("Stop Processing"):
+    if st.button("Stop Processing", style="danger"):
         stop_event.set()
 
     # Process video button
@@ -428,7 +430,7 @@ else:
                   # Only process frames based on the user-selected frame skip
                   if frame_count % frame_skip == 0:
                       # Run inference on the frame with the selected model
-                      overlay, overlay_counter, processed_frame, prediction_response = run_model_inference(background_subtractor, overlay, overlay_counter, prev_frame, frame, model_option)
+                      overlay, overlay_counter, processed_frame, prediction_response = run_model_inference(det_threshold,background_subtractor, overlay, overlay_counter, prev_frame, frame, model_option)
                       #previous_response = prediction_response
 
                       if prediction_response:
