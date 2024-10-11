@@ -322,13 +322,14 @@ elif video_option == "Youtube Streaming":
 
     # Create a model selector for each YouTube URL
     url_list = [url.strip() for url in youtube_urls.split('\n') if url.strip()]
+    json_responses.append(f"URL List: {url_list}")
     model_options = []
     for idx, url in enumerate(url_list):
         model_names = [model["Name"] for model in available_models]
         selected_model_name = st.selectbox(f"Select a model for YouTube Video {idx + 1}: {url}", model_names, key=f"youtube_model_{idx}")
         selected_model = next(model for model in available_models if model["Name"] == selected_model_name)
         model_options.append(selected_model)
-
+    json_responses.append(f"Model Options: {model_options}")
     # Event to stop processing
     stop_event = threading.Event()
 
@@ -346,52 +347,56 @@ elif video_option == "Youtube Streaming":
 
             # Function to process each YouTube video
             def process_youtube_video(youtube_url, index, model_option, stop_event):
-                stream_url = get_stream_url(youtube_url)  # Use yt-dlp to get stream URL
-                background_subtractor = cv2.createBackgroundSubtractorMOG2(history=10000, varThreshold=40, detectShadows=False)
-                overlay = None
-                overlay_decay = 3  
-                overlay_counter = 0
-                prev_frame = None
-                video_capture = cv2.VideoCapture(stream_url)
-                if not video_capture.isOpened():
-                    st.error(f"Error: Could not open YouTube video at {stream_url}.")
-                    return
-                
-                frame_count = 0
+                try:
+                    stream_url = get_stream_url(youtube_url)  # Use yt-dlp to get stream URL
+                    background_subtractor = cv2.createBackgroundSubtractorMOG2(history=10000, varThreshold=40, detectShadows=False)
+                    overlay = None
+                    overlay_decay = 3  
+                    overlay_counter = 0
+                    prev_frame = None
+                    video_capture = cv2.VideoCapture(stream_url)
+                    if not video_capture.isOpened():
+                        st.error(f"Error: Could not open YouTube video at {stream_url}.")
+                        return
+                    
+                    frame_count = 0
 
-                while video_capture.isOpened() and not stop_event.is_set():
-                    ret, frame = video_capture.read()
-                    frame = cv2.resize(frame, (640, 280))
+                    while video_capture.isOpened() and not stop_event.is_set():
+                        ret, frame = video_capture.read()
+                        frame = cv2.resize(frame, (640, 280))
 
-                    if prev_frame is None:
+                        if prev_frame is None:
+                            prev_frame = frame
+
+                        if not ret:
+                            json_responses.append(f"Error: Failed to grab a frame from YouTube video at {stream_url}.")
+                            break  # Stop the loop when no more frames
+
+                        # Only process frames based on the user-selected frame skip
+                        # if frame_count % frame_skip == 0:
+                        #     # Run inference on the frame with the selected model
+                        #     overlay, overlay_counter, processed_frame, prediction_response = run_model_inference(
+                        #         det_threshold, background_subtractor, overlay, overlay_counter, prev_frame, frame, model_option
+                        #     )
+
+                        #     if prediction_response:
+                        #         # Append prediction results to JSON responses
+                        #         json_responses.append(json_format.MessageToJson(prediction_response))
+
+                        #     # Convert the frame from BGR to RGB for displaying
+                        #     rgb_frame = cv2.cvtColor(processed_frame, cv2.COLOR_BGR2RGB)
+
+                        #     # Add the frame to the buffer
+                        #     video_buffers[index].append(rgb_frame)
+                        rgb_frame = cv2.cvtColor(frame.copy(), cv2.COLOR_BGR2RGB)
+                        video_buffers[index].append(rgb_frame)
+                        frame_count += 1
                         prev_frame = frame
 
-                    if not ret:
-                        json_responses.append(f"Error: Failed to grab a frame from YouTube video at {stream_url}.")
-                        break  # Stop the loop when no more frames
-
-                    # Only process frames based on the user-selected frame skip
-                    # if frame_count % frame_skip == 0:
-                    #     # Run inference on the frame with the selected model
-                    #     overlay, overlay_counter, processed_frame, prediction_response = run_model_inference(
-                    #         det_threshold, background_subtractor, overlay, overlay_counter, prev_frame, frame, model_option
-                    #     )
-
-                    #     if prediction_response:
-                    #         # Append prediction results to JSON responses
-                    #         json_responses.append(json_format.MessageToJson(prediction_response))
-
-                    #     # Convert the frame from BGR to RGB for displaying
-                    #     rgb_frame = cv2.cvtColor(processed_frame, cv2.COLOR_BGR2RGB)
-
-                    #     # Add the frame to the buffer
-                    #     video_buffers[index].append(rgb_frame)
-                    rgb_frame = cv2.cvtColor(frame.copy(), cv2.COLOR_BGR2RGB)
-                    video_buffers[index].append(rgb_frame)
-                    frame_count += 1
-                    prev_frame = frame
-
-                video_capture.release()
+                    video_capture.release()
+                except Exception as e:
+                    st.error(e)
+                    json_responses.append(f"Error {e} processing YouTube video at {youtube_url}")
 
             # Start threads for each YouTube URL with their corresponding model option
             for index, (youtube_url, model_option) in enumerate(zip(url_list, model_options)):
