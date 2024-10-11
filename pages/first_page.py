@@ -494,8 +494,9 @@ elif video_option == "Streaming Video":
                 prev_frame = None
 
                 try:
+
                     command = ['ffmpeg', '-i', video_url, '-f', 'image2pipe', '-pix_fmt', 'bgr24', '-vcodec', 'rawvideo', '-']
-                    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=10**8, shell=False)
+                    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=False)
 
                     frame_count = 0
                     width, height = 640, 480  # Default resolution, adjust based on the stream
@@ -528,13 +529,13 @@ elif video_option == "Streaming Video":
                     process.kill()
 
                 except Exception as e:
-                    print(f"Error processing stream {video_url}: {e}")
+                    print(f"~~~Error processing stream {video_url}: {e}")
                     json_responses.append(f"Error {e} processing stream at {video_url}")
             except Exception as e:
-                # empty_frame = np.zeros((480, 640, 3), dtype=np.uint8)
-                # cv2.putText(empty_frame, f"Error: {e}", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
-                # video_buffers[index].append(empty_frame)
-                json_responses.append(f"Error {e} processing stream at {video_url}")
+                empty_frame = np.zeros((480, 640, 3), dtype=np.uint8)
+                cv2.putText(empty_frame, f"Error: {e}", (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
+                video_buffers[index].append(empty_frame)
+                json_responses.append(f"!!!Error {e} processing stream at {video_url}")
 
         for index, (video_url, model_option) in enumerate(zip(stream_list, model_options)):
             thread = threading.Thread(target=process_video, args=(video_url, index, model_option, stop_event))
