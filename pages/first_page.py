@@ -149,8 +149,7 @@ def get_stream_url(video_url):
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(video_url, download=False)
         stream_url = info['url']
-    #dispaly the stream url
-    st.write(f"Stream URL: {stream_url}")
+    st.text_area(f"Stream URL for {video_url}:", value=stream_url)
     return stream_url
 
 
@@ -355,7 +354,7 @@ elif video_option == "Youtube Streaming":
                 prev_frame = None
                 video_capture = cv2.VideoCapture(stream_url)
                 if not video_capture.isOpened():
-                    st.error(f"Error: Could not open YouTube video at {youtube_url}.")
+                    st.error(f"Error: Could not open YouTube video at {stream_url}.")
                     return
                 
                 frame_count = 0
@@ -368,6 +367,7 @@ elif video_option == "Youtube Streaming":
                         prev_frame = frame
 
                     if not ret:
+                        json_responses.append(f"Error: Failed to grab a frame from YouTube video at {stream_url}.")
                         break  # Stop the loop when no more frames
 
                     # Only process frames based on the user-selected frame skip
@@ -434,7 +434,7 @@ elif video_option == "Youtube Streaming":
             st.error(e)
             json_responses.append(f"Error {e} processing YouTube video")
 
-        st.success(json_responses)
+        st.success(f"Json Response: {json_responses}")
 
     verify_json_responses()
 
