@@ -301,9 +301,11 @@ json_responses = []
 
 # Section for playing and processing video frames
 st.subheader("Video Frame Processing")
-video_option = st.radio("Choose Video Input:", ("Standard Video File URLs","Webcam", "Youtube Streaming"), horizontal=True) #, "Webcam", "Streaming Video URLs"
+video_option = st.radio("Choose Video Input:", ("Standard Video File URLs","Streaming Video URLs", "Webcam", "Youtube Streaming[beta]"), horizontal=True) #, "Webcam", "Streaming Video URLs"
 
 if video_option == "Webcam":
+    # diclaimer about webcam
+    st.info("Note: The webcam feature may not work on all devices.")
     # Option to capture video from webcam
     enable = st.checkbox("Enable camera")
     webcam_input = st.camera_input("Capture a frame from your webcam:", disabled=not enable)
@@ -320,7 +322,9 @@ if video_option == "Webcam":
     #     # Convert the frame from BGR to RGB (for displaying in Streamlit)
     #     rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     #     st.image(rgb_frame, caption="Processed Webcam Frame")
-elif video_option == "Youtube Streaming":
+elif video_option == "Youtube Streaming[beta]":
+    # add disclaimer about it not fully supported
+    st.info("Note: The YouTube streaming feature is in beta and may not work as expected.")
     # Input for multiple YouTube URLs with prepopulated example URLs
     youtube_urls = st.text_area("Enter YouTube URLs (one per line):",
                                 value="https://www.youtube.com/watch?v=GIUTYf0Fpic\nhttps://www.youtube.com/watch?v=RDchI1SLh4Q")
@@ -457,6 +461,8 @@ elif video_option == "Youtube Streaming":
 
 
 elif video_option == "Streaming Video":
+    # diclaimer about streaming video
+    st.info("Note: The streaming video feature may not work on all devices for all streams.")
     # Input for streaming video URL
     stream_urls = st.text_area("Enter video Streams (one per line):",
                                value="https://vs-dash-ww-rd-live.akamaized.net/pl/testcard2020/avc-mobile.m3u8\nrtsp://1701954d6d07.entrypoint.cloud.wowza.com:1935/app-m75436g0/27122ffc_stream2")
