@@ -1,5 +1,6 @@
 import streamlit as st
 import cv2
+import os
 import numpy as np
 import threading
 import time
@@ -141,83 +142,27 @@ from google.protobuf import json_format
 import yt_dlp
 
 # Function to get YouTube stream URL using yt-dlp
-import streamlit as st
-import yt_dlp
-import requests
-from urllib.parse import urlencode
-
 def get_stream_url(video_url):
-    # User inputs for OAuth Client ID and Client Secret
-    client_id = st.text_input("Enter your YouTube OAuth Client ID:")
-    client_secret = st.text_input("Enter your YouTube OAuth Client Secret:", type="password")
+    #get key from env
+    api_key = os.getenv('GOOGLE_API_KEY')
+    ydl_opts = {
+        'http_headers': {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Referer': 'https://www.youtube.com/',
+            'api_key': api_key,
+        },
+        'nocheckcertificate': True,  # In case certificates create issues
+        'verbose': True,  # Optional: For more detailed output
 
-    # If both client ID and secret are provided, initiate the authentication process
-    if client_id and client_secret:
-        # Prepare the OAuth2 authorization URL
-        auth_url = "https://accounts.google.com/o/oauth2/auth"
-        redirect_uri = "urn:ietf:wg:oauth:2.0:oob"
-        scope = "https://www.googleapis.com/auth/youtube.readonly"
-        
-        # Build the authorization request URL
-        params = {
-            "client_id": client_id,
-            "redirect_uri": redirect_uri,
-            "scope": scope,
-            "response_type": "code",
-            "access_type": "offline",
-        }
-        auth_request_url = f"{auth_url}?{urlencode(params)}"
-        
-        st.markdown(f"To authenticate, please click the link below and follow the instructions:\n{auth_request_url}")
-        
-        # Input for the authorization code after user completes authentication
-        auth_code = st.text_input("Enter the authorization code:")
-        
-        if auth_code:
-            # Exchange the authorization code for access and refresh tokens
-            token_url = "https://oauth2.googleapis.com/token"
-            token_data = {
-                "code": auth_code,
-                "client_id": client_id,
-                "client_secret": client_secret,
-                "redirect_uri": redirect_uri,
-                "grant_type": "authorization_code",
-            }
-            
-            # Make a request to get the access token
-            response = requests.post(token_url, data=token_data)
-            token_info = response.json()
-            
-            if 'access_token' in token_info:
-                access_token = token_info['access_token']
-                st.success("Successfully authenticated! Access token obtained.")
-                
-                # Now use the access token in yt-dlp options
-                ydl_opts = {
-                    'http_headers': {
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-                        'Accept-Language': 'en-US,en;q=0.9',
-                        'Referer': 'https://www.youtube.com/',
-                        'Authorization': f'Bearer {access_token}',  # Use access token here
-                    },
-                    'nocheckcertificate': True,
-                    'verbose': True,
-                    'format': 'best',
-                    'quiet': True,
-                }
-                
-                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                    info = ydl.extract_info(video_url, download=False)
-                    stream_url = info['url']
-                
-                st.text_area(f"Stream URL for {video_url}:", value=stream_url)
-                return stream_url
-            
-            else:
-                st.error("Failed to obtain access token. Please check your credentials and try again.")
-    
-    return None
-
+        'format': 'best',  # You can change this to select the quality
+        'quiet': True,
+    }
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(video_url, download=False)
+        stream_url = info['url']
+    st.text_area(f"Stream URL for {video_url}:", value=stream_url)
+    return stream_url
 
 
 
