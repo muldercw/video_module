@@ -326,7 +326,7 @@ elif video_option == "Youtube Streaming":
     model_options = []
     for idx, url in enumerate(url_list):
         model_names = [model["Name"] for model in available_models]
-        selected_model_name = st.selectbox(f"Select a model for YouTube Video {idx + 1}:", model_names, key=f"youtube_model_{idx}")
+        selected_model_name = st.selectbox(f"Select a model for YouTube Video {idx + 1}: {url}", model_names, key=f"youtube_model_{idx}")
         selected_model = next(model for model in available_models if model["Name"] == selected_model_name)
         model_options.append(selected_model)
 
@@ -371,22 +371,23 @@ elif video_option == "Youtube Streaming":
                         break  # Stop the loop when no more frames
 
                     # Only process frames based on the user-selected frame skip
-                    if frame_count % frame_skip == 0:
-                        # Run inference on the frame with the selected model
-                        overlay, overlay_counter, processed_frame, prediction_response = run_model_inference(
-                            det_threshold, background_subtractor, overlay, overlay_counter, prev_frame, frame, model_option
-                        )
+                    # if frame_count % frame_skip == 0:
+                    #     # Run inference on the frame with the selected model
+                    #     overlay, overlay_counter, processed_frame, prediction_response = run_model_inference(
+                    #         det_threshold, background_subtractor, overlay, overlay_counter, prev_frame, frame, model_option
+                    #     )
 
-                        if prediction_response:
-                            # Append prediction results to JSON responses
-                            json_responses.append(json_format.MessageToJson(prediction_response))
+                    #     if prediction_response:
+                    #         # Append prediction results to JSON responses
+                    #         json_responses.append(json_format.MessageToJson(prediction_response))
 
-                        # Convert the frame from BGR to RGB for displaying
-                        rgb_frame = cv2.cvtColor(processed_frame, cv2.COLOR_BGR2RGB)
+                    #     # Convert the frame from BGR to RGB for displaying
+                    #     rgb_frame = cv2.cvtColor(processed_frame, cv2.COLOR_BGR2RGB)
 
-                        # Add the frame to the buffer
-                        video_buffers[index].append(rgb_frame)
-
+                    #     # Add the frame to the buffer
+                    #     video_buffers[index].append(rgb_frame)
+                    rgb_frame = cv2.cvtColor(frame.copy(), cv2.COLOR_BGR2RGB)
+                    video_buffers[index].append(rgb_frame)
                     frame_count += 1
                     prev_frame = frame
 
