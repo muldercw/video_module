@@ -301,7 +301,7 @@ json_responses = []
 
 # Section for playing and processing video frames
 st.subheader("Video Frame Processing")
-video_option = st.radio("Choose Video Input:", ("Standard Video File URLs","Streaming Video URLs", "Webcam", "Youtube Streaming[beta]"), horizontal=True) #, "Webcam", "Streaming Video URLs"
+video_option = st.radio("Choose Video Input:", ("Standard Video File URLs","Streaming Video", "Webcam", "Youtube Streaming[beta]"), horizontal=True) #, "Webcam", "Streaming Video URLs"
 
 if video_option == "Webcam":
     # diclaimer about webcam
