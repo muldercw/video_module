@@ -136,7 +136,20 @@ def movement_detection(overlay, overlay_counter, background_subtractor, prev_fra
         return overlay, overlay_counter, _frame, None
 
 
+import json
+from google.protobuf import json_format
+import yt_dlp
 
+# Function to get YouTube stream URL using yt-dlp
+def get_stream_url(video_url):
+    ydl_opts = {
+        'format': 'best',  # You can change this to select the quality
+        'quiet': True,
+    }
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(video_url, download=False)
+        stream_url = info['url']
+    return stream_url
 
 
 
@@ -275,7 +288,7 @@ json_responses = []
 
 # Section for playing and processing video frames
 st.subheader("Video Frame Processing")
-video_option = st.radio("Choose Video Input:", ("Standard Video File URLs","Webcam"), horizontal=True) #, "Webcam", "Streaming Video URLs"
+video_option = st.radio("Choose Video Input:", ("Standard Video File URLs","Webcam", "Youtube Streaming"), horizontal=True) #, "Webcam", "Streaming Video URLs"
 
 if video_option == "Webcam":
     # Option to capture video from webcam
@@ -294,6 +307,105 @@ if video_option == "Webcam":
     #     # Convert the frame from BGR to RGB (for displaying in Streamlit)
     #     rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     #     st.image(rgb_frame, caption="Processed Webcam Frame")
+elif video_option == "Youtube Streaming":
+    # Input for streaming video URL
+    youtube_url = st.text_input("Enter YouTube Live URL:")
+
+    # Slider for frame skip selection
+    frame_skip = st.slider("Select how many frames to skip:", min_value=1, max_value=120, value=28)
+    det_threshold = st.slider("Select detection threshold:", min_value=0.01, max_value=1.00, value=0.5)
+    
+    # Obtain models from list_models()
+    available_models = list_models()
+
+    # Select a model for the YouTube video
+    model_names = [model["Name"] for model in available_models]
+    selected_model_name = st.selectbox("Select a model for YouTube Video:", model_names, key="youtube_model")
+    selected_model = next(model for model in available_models if model["Name"] == selected_model_name)
+
+    # Event to stop processing
+    stop_event = threading.Event()
+
+    # Stop processing button
+    if st.button("Stop Processing"):
+        stop_event.set()
+
+    # Process video button
+    if st.button("Process YouTube Video") and not stop_event.is_set():
+        frame_placeholder = st.empty()
+        try:
+            # Initialize buffer
+            video_buffer = deque(maxlen=6)  # Buffer for the latest 6 frames
+
+            # Function to process YouTube live video
+            def process_youtube_video(youtube_url, model_option, stop_event):
+                stream_url = get_stream_url(youtube_url)  # Use yt-dlp to get stream URL
+                background_subtractor = cv2.createBackgroundSubtractorMOG2(history=10000, varThreshold=40, detectShadows=False)
+                overlay = None
+                overlay_decay = 3  
+                overlay_counter = 0
+                prev_frame = None
+                video_capture = cv2.VideoCapture(stream_url)
+                
+                if not video_capture.isOpened():
+                    st.error(f"Error: Could not open YouTube live stream at {youtube_url}.")
+                    return
+                
+                frame_count = 0  # Initialize frame count
+
+                while video_capture.isOpened() and not stop_event.is_set():
+                    ret, frame = video_capture.read()
+                    frame = cv2.resize(frame, (320, 240))
+
+                    if prev_frame is None:
+                        prev_frame = frame
+
+                    if not ret:
+                        break  # Stop the loop when no more frames
+
+                    # Only process frames based on the user-selected frame skip
+                    if frame_count % frame_skip == 0:
+                        # Run inference on the frame with the selected model
+                        overlay, overlay_counter, processed_frame, prediction_response = run_model_inference(
+                            det_threshold, background_subtractor, overlay, overlay_counter, prev_frame, frame, model_option
+                        )
+
+                        if prediction_response:
+                            # Append prediction results to JSON responses
+                            json_responses.append(json_format.MessageToJson(prediction_response))
+
+                        # Convert the frame from BGR to RGB (for displaying in Streamlit)
+                        rgb_frame = cv2.cvtColor(processed_frame, cv2.COLOR_BGR2RGB)
+
+                        # Add the frame to the buffer
+                        video_buffer.append(rgb_frame)
+
+                    frame_count += 1
+                    prev_frame = frame
+
+                video_capture.release()
+
+            # Start the thread for processing the YouTube live video
+            thread = threading.Thread(target=process_youtube_video, args=(youtube_url, selected_model, stop_event))
+            thread.start()
+
+            # Monitor thread and update the displayed frames
+            while thread.is_alive():
+                if len(video_buffer) > 0:
+                    latest_frame = video_buffer[-1]  # Get the latest frame
+                    frame_placeholder.image(latest_frame, caption="Processed YouTube Video Frame")
+
+                time.sleep(0.01)
+
+            # Ensure the thread finishes
+            thread.join()
+
+        except Exception as e:
+            st.error(e)
+            json_responses.append(f"Error {e} processing YouTube live video")
+
+        st.success(json_responses)
+
 elif video_option == "Streaming Video":
     # Input for streaming video URL
     stream_urls = st.text_area("Enter video Streams (one per line):",
