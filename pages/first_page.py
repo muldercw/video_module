@@ -462,9 +462,8 @@ elif video_option == "Youtube Streaming[beta]":
 
 elif video_option == "Streaming Video":
     st.info("Note: The streaming video feature may not work on all devices for all streams.")
-    
-    stream_urls = st.text_area("Enter video Streams (one per line):",
-                               value="https://vs-dash-ww-rd-live.akamaized.net/pl/testcard2020/avc-mobile.m3u8\nrtsp://1701954d6d07.entrypoint.cloud.wowza.com:1935/app-m75436g0/27122ffc_stream2")
+    json_responses.append("Streaming Video Processing")
+    stream_urls = st.text_area("Enter video Streams (one per line):", value="https://vs-dash-ww-rd-live.akamaized.net/pl/testcard2020/avc-mobile.m3u8\nrtsp://1701954d6d07.entrypoint.cloud.wowza.com:1935/app-m75436g0/27122ffc_stream2")
     frame_skip = st.slider("Select how many frames to skip:", min_value=1, max_value=20, value=2)
     available_models = list_models()
     
@@ -505,6 +504,7 @@ elif video_option == "Streaming Video":
                         raw_frame = process.stdout.read(width * height * 3)
 
                         if len(raw_frame) != (width * height * 3):
+                            json_responses.append(f"Error: Failed to grab a frame from stream at {video_url}.")
                             break  # Exit if frame read is incomplete (likely end of stream)
                         
                         frame = np.frombuffer(raw_frame, np.uint8).reshape((height, width, 3))
@@ -531,10 +531,10 @@ elif video_option == "Streaming Video":
                     print(f"Error processing stream {video_url}: {e}")
                     json_responses.append(f"Error {e} processing stream at {video_url}")
             except Exception as e:
-                empty_frame = np.zeros((480, 640, 3), dtype=np.uint8)
-                cv.putText(empty_frame, f"Error: {e}", (50, 50), cv.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv.LINE_AA)
-                video_buffers[index].append(empty_frame)
-                json_responses.append(f"Error {e} processing YouTube video at {youtube_url}")
+                # empty_frame = np.zeros((480, 640, 3), dtype=np.uint8)
+                # cv2.putText(empty_frame, f"Error: {e}", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
+                # video_buffers[index].append(empty_frame)
+                json_responses.append(f"Error {e} processing stream at {video_url}")
 
         for index, (video_url, model_option) in enumerate(zip(stream_list, model_options)):
             thread = threading.Thread(target=process_video, args=(video_url, index, model_option, stop_event))
@@ -565,7 +565,7 @@ elif video_option == "Streaming Video":
         for thread in threads:
             thread.join()
 
-        st.success("Streaming video processing completed!")
+        st.success(f"Json Response: {json_responses}")
     verify_json_responses()
 
 else:
