@@ -139,30 +139,30 @@ def movement_detection(overlay, overlay_counter, background_subtractor, prev_fra
 
 import json
 from google.protobuf import json_format
-import yt_dlp
+
 
 # Function to get YouTube stream URL using yt-dlp
 def get_stream_url(video_url):
-    #get key from env
-    api_key = os.getenv('GOOGLE_API_KEY')
-    ydl_opts = {
-        'http_headers': {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Accept-Language': 'en-US,en;q=0.9',
-            'Referer': 'https://www.youtube.com/',
-            'key': api_key,
-        },
-        'nocheckcertificate': True,  # In case certificates create issues
-        'verbose': True,  # Optional: For more detailed output
+    # #get key from env
+    # api_key = os.getenv('GOOGLE_API_KEY')
+    # ydl_opts = {
+    #     'http_headers': {
+    #         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+    #         'Accept-Language': 'en-US,en;q=0.9',
+    #         'Referer': 'https://www.youtube.com/',
+    #         'key': api_key,
+    #     },
+    #     'nocheckcertificate': True,  # In case certificates create issues
+    #     'verbose': True,  # Optional: For more detailed output
 
-        'format': 'best',  # You can change this to select the quality
-        'quiet': True,
-    }
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(video_url, download=False)
-        stream_url = info['url']
-    st.text_area(f"Stream URL for {video_url}:", value=stream_url)
-    return stream_url
+    #     'format': 'best',  # You can change this to select the quality
+    #     'quiet': True,
+    # }
+    # with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+    #     info = ydl.extract_info(video_url, download=False)
+    #     stream_url = info['url']
+    # st.text_area(f"Stream URL for {video_url}:", value=stream_url)
+    return video_url
 
 
 
