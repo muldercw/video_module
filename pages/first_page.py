@@ -461,66 +461,88 @@ elif video_option == "Youtube Streaming[beta]":
 
 
 elif video_option == "Streaming Video":
-    # diclaimer about streaming video
     st.info("Note: The streaming video feature may not work on all devices for all streams.")
-    # Input for streaming video URL
+    
     stream_urls = st.text_area("Enter video Streams (one per line):",
                                value="https://vs-dash-ww-rd-live.akamaized.net/pl/testcard2020/avc-mobile.m3u8\nrtsp://1701954d6d07.entrypoint.cloud.wowza.com:1935/app-m75436g0/27122ffc_stream2")
     frame_skip = st.slider("Select how many frames to skip:", min_value=1, max_value=20, value=2)
     available_models = list_models()
+    
     stream_list = [url.strip() for url in stream_urls.split('\n') if url.strip()]
     model_options = []
+    
     for idx, url in enumerate(stream_list):
         model_names = [model["Name"] for model in available_models]
         selected_model_name = st.selectbox(f"Select a model for Stream {idx + 1}:", model_names, key=f"model_{idx}")
         selected_model = next(model for model in available_models if model["Name"] == selected_model_name)
         model_options.append(selected_model)
+
     stop_event = threading.Event()
+
     if st.button("Stop Processing"):
         stop_event.set()
+
     if st.button("Process Streams") and not stop_event.is_set():
-        # use ffmpeg to stream the video
         video_buffers = [deque(maxlen=2) for _ in range(len(stream_list))]
         threads = []
+
         def process_video(video_url, index, model_option, stop_event):
             background_subtractor = cv2.createBackgroundSubtractorMOG2(history=10000, varThreshold=40, detectShadows=False)
             overlay = None
-            overlay_decay = 3  
+            overlay_decay = 3
             overlay_counter = 0
             prev_frame = None
-            try:##ffmpeg to read the stream
-              command = ['ffmpeg', '-i', video_url, '-f', 'image2pipe', '-pix_fmt', 'bgr24', '-vcodec', 'rawvideo', '-']
-              process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=False)
-              frame_count = 0
-              while not stop_event.is_set():
-                  raw_frame = process.stdout.read(640 * 480 * 3)
-                  if len(raw_frame) == 0:
-                      break
-                  frame = np.frombuffer(raw_frame, np.uint8).reshape(480, 640, 3)
-                  if prev_frame is None:
-                      prev_frame = frame
-                  if frame_count % frame_skip == 0:
-                      overlay, overlay_counter, processed_frame, prediction_response = run_model_inference(det_threshold, background_subtractor, overlay, overlay_counter, prev_frame, frame, model_option)
-                      if prediction_response:
-                          json_responses.append(json_format.MessageToJson(prediction_response))
-                      rgb_frame = cv2.cvtColor(processed_frame, cv2.COLOR_BGR2RGB)
-                      video_buffers[index].append(rgb_frame)
-                  frame_count += 1
-                  prev_frame = frame
-              process.kill()
+
+            try:
+                command = ['ffmpeg', '-i', video_url, '-f', 'image2pipe', '-pix_fmt', 'bgr24', '-vcodec', 'rawvideo', '-']
+                process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=10**8, shell=False)
+
+                frame_count = 0
+                width, height = 640, 480  # Default resolution, adjust based on the stream
+                
+                while not stop_event.is_set():
+                    raw_frame = process.stdout.read(width * height * 3)
+
+                    if len(raw_frame) != (width * height * 3):
+                        break  # Exit if frame read is incomplete (likely end of stream)
+                    
+                    frame = np.frombuffer(raw_frame, np.uint8).reshape((height, width, 3))
+                    
+                    if prev_frame is None:
+                        prev_frame = frame
+
+                    if frame_count % frame_skip == 0:
+                        overlay, overlay_counter, processed_frame, prediction_response = run_model_inference(
+                            det_threshold, background_subtractor, overlay, overlay_counter, prev_frame, frame, model_option
+                        )
+
+                        if prediction_response:
+                            json_responses.append(json_format.MessageToJson(prediction_response))
+
+                        rgb_frame = cv2.cvtColor(processed_frame, cv2.COLOR_BGR2RGB)
+                        video_buffers[index].append(rgb_frame)
+
+                    frame_count += 1
+                    prev_frame = frame
+                
+                process.kill()
+
             except Exception as e:
-              print(e)
-              json_responses.append(f"Error {e} processing video at {video_url}")
+                print(f"Error processing stream {video_url}: {e}")
+                json_responses.append(f"Error {e} processing stream at {video_url}")
 
         for index, (video_url, model_option) in enumerate(zip(stream_list, model_options)):
             thread = threading.Thread(target=process_video, args=(video_url, index, model_option, stop_event))
             thread.start()
             threads.append(thread)
+
         while any(thread.is_alive() for thread in threads):
             grid_frames = []
+
             for index in range(len(video_buffers)):
                 if len(video_buffers[index]) > 0:
                     grid_frames.append(video_buffers[index][-1])
+
             if grid_frames:
                 if len(grid_frames) == 1:
                     grid_image = grid_frames[0]
@@ -528,13 +550,19 @@ elif video_option == "Streaming Video":
                     if len(grid_frames) % 2 != 0:
                         blank_frame = np.zeros_like(grid_frames[-1])
                         grid_frames.append(blank_frame)
+
                     grid_image = np.concatenate([np.concatenate(grid_frames[i:i + 2], axis=1) for i in range(0, len(grid_frames), 2)], axis=0)
+                
                 st.image(grid_image, caption="Processed Video Frames")
+            
             time.sleep(0.1)
+
         for thread in threads:
             thread.join()
-        st.success("Video processing completed!")
+
+        st.success("Streaming video processing completed!")
     verify_json_responses()
+
 else:
     # Input for multiple video URLs with prepopulated example URLs
     video_urls = st.text_area("Enter video URLs (one per line):",
