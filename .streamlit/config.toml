@@ -1,6 +1,9 @@
 [theme]
-base="light"
+base="dark"
 primaryColor="#356dff"
 
 [ui]
 hideSidebarNav=true
+
+[client]
+showErrorDetails = true
