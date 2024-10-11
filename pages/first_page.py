@@ -487,49 +487,54 @@ elif video_option == "Streaming Video":
         threads = []
 
         def process_video(video_url, index, model_option, stop_event):
-            background_subtractor = cv2.createBackgroundSubtractorMOG2(history=10000, varThreshold=40, detectShadows=False)
-            overlay = None
-            overlay_decay = 3
-            overlay_counter = 0
-            prev_frame = None
-
             try:
-                command = ['ffmpeg', '-i', video_url, '-f', 'image2pipe', '-pix_fmt', 'bgr24', '-vcodec', 'rawvideo', '-']
-                process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=10**8, shell=False)
+                background_subtractor = cv2.createBackgroundSubtractorMOG2(history=10000, varThreshold=40, detectShadows=False)
+                overlay = None
+                overlay_decay = 3
+                overlay_counter = 0
+                prev_frame = None
 
-                frame_count = 0
-                width, height = 640, 480  # Default resolution, adjust based on the stream
-                
-                while not stop_event.is_set():
-                    raw_frame = process.stdout.read(width * height * 3)
+                try:
+                    command = ['ffmpeg', '-i', video_url, '-f', 'image2pipe', '-pix_fmt', 'bgr24', '-vcodec', 'rawvideo', '-']
+                    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=10**8, shell=False)
 
-                    if len(raw_frame) != (width * height * 3):
-                        break  # Exit if frame read is incomplete (likely end of stream)
+                    frame_count = 0
+                    width, height = 640, 480  # Default resolution, adjust based on the stream
                     
-                    frame = np.frombuffer(raw_frame, np.uint8).reshape((height, width, 3))
-                    
-                    if prev_frame is None:
+                    while not stop_event.is_set():
+                        raw_frame = process.stdout.read(width * height * 3)
+
+                        if len(raw_frame) != (width * height * 3):
+                            break  # Exit if frame read is incomplete (likely end of stream)
+                        
+                        frame = np.frombuffer(raw_frame, np.uint8).reshape((height, width, 3))
+                        
+                        if prev_frame is None:
+                            prev_frame = frame
+
+                        if frame_count % frame_skip == 0:
+                            overlay, overlay_counter, processed_frame, prediction_response = run_model_inference(det_threshold, background_subtractor, overlay, overlay_counter, prev_frame, frame, model_option)
+
+
+                            if prediction_response:
+                                json_responses.append(json_format.MessageToJson(prediction_response))
+
+                            rgb_frame = cv2.cvtColor(processed_frame, cv2.COLOR_BGR2RGB)
+                            video_buffers[index].append(rgb_frame)
+
+                        frame_count += 1
                         prev_frame = frame
+                    
+                    process.kill()
 
-                    if frame_count % frame_skip == 0:
-                        overlay, overlay_counter, processed_frame, prediction_response = run_model_inference(
-                            det_threshold, background_subtractor, overlay, overlay_counter, prev_frame, frame, model_option
-                        )
-
-                        if prediction_response:
-                            json_responses.append(json_format.MessageToJson(prediction_response))
-
-                        rgb_frame = cv2.cvtColor(processed_frame, cv2.COLOR_BGR2RGB)
-                        video_buffers[index].append(rgb_frame)
-
-                    frame_count += 1
-                    prev_frame = frame
-                
-                process.kill()
-
+                except Exception as e:
+                    print(f"Error processing stream {video_url}: {e}")
+                    json_responses.append(f"Error {e} processing stream at {video_url}")
             except Exception as e:
-                print(f"Error processing stream {video_url}: {e}")
-                json_responses.append(f"Error {e} processing stream at {video_url}")
+                empty_frame = np.zeros((480, 640, 3), dtype=np.uint8)
+                cv.putText(empty_frame, f"Error: {e}", (50, 50), cv.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv.LINE_AA)
+                video_buffers[index].append(empty_frame)
+                json_responses.append(f"Error {e} processing YouTube video at {youtube_url}")
 
         for index, (video_url, model_option) in enumerate(zip(stream_list, model_options)):
             thread = threading.Thread(target=process_video, args=(video_url, index, model_option, stop_event))
