@@ -149,6 +149,8 @@ def get_stream_url(video_url):
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(video_url, download=False)
         stream_url = info['url']
+    #dispaly the stream url
+    st.write(f"Stream URL: {stream_url}")
     return stream_url
 
 
@@ -308,20 +310,25 @@ if video_option == "Webcam":
     #     rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     #     st.image(rgb_frame, caption="Processed Webcam Frame")
 elif video_option == "Youtube Streaming":
-    # Input for streaming video URL
-    youtube_url = st.text_input("Enter YouTube Live URL:")
+    # Input for multiple YouTube URLs with prepopulated example URLs
+    youtube_urls = st.text_area("Enter YouTube URLs (one per line):",
+                                value="https://www.youtube.com/watch?v=GIUTYf0Fpic\nhttps://www.youtube.com/watch?v=RDchI1SLh4Q")
 
     # Slider for frame skip selection
     frame_skip = st.slider("Select how many frames to skip:", min_value=1, max_value=120, value=28)
     det_threshold = st.slider("Select detection threshold:", min_value=0.01, max_value=1.00, value=0.5)
-    
+
     # Obtain models from list_models()
     available_models = list_models()
 
-    # Select a model for the YouTube video
-    model_names = [model["Name"] for model in available_models]
-    selected_model_name = st.selectbox("Select a model for YouTube Video:", model_names, key="youtube_model")
-    selected_model = next(model for model in available_models if model["Name"] == selected_model_name)
+    # Create a model selector for each YouTube URL
+    url_list = [url.strip() for url in youtube_urls.split('\n') if url.strip()]
+    model_options = []
+    for idx, url in enumerate(url_list):
+        model_names = [model["Name"] for model in available_models]
+        selected_model_name = st.selectbox(f"Select a model for YouTube Video {idx + 1}:", model_names, key=f"youtube_model_{idx}")
+        selected_model = next(model for model in available_models if model["Name"] == selected_model_name)
+        model_options.append(selected_model)
 
     # Event to stop processing
     stop_event = threading.Event()
@@ -330,15 +337,16 @@ elif video_option == "Youtube Streaming":
     if st.button("Stop Processing"):
         stop_event.set()
 
-    # Process video button
-    if st.button("Process YouTube Video") and not stop_event.is_set():
+    # Process YouTube videos button
+    if st.button("Process YouTube Videos") and not stop_event.is_set():
         frame_placeholder = st.empty()
         try:
-            # Initialize buffer
-            video_buffer = deque(maxlen=6)  # Buffer for the latest 6 frames
+            # Initialize buffers and threads
+            video_buffers = [deque(maxlen=6) for _ in range(len(url_list))]
+            threads = []
 
-            # Function to process YouTube live video
-            def process_youtube_video(youtube_url, model_option, stop_event):
+            # Function to process each YouTube video
+            def process_youtube_video(youtube_url, index, model_option, stop_event):
                 stream_url = get_stream_url(youtube_url)  # Use yt-dlp to get stream URL
                 background_subtractor = cv2.createBackgroundSubtractorMOG2(history=10000, varThreshold=40, detectShadows=False)
                 overlay = None
@@ -346,16 +354,15 @@ elif video_option == "Youtube Streaming":
                 overlay_counter = 0
                 prev_frame = None
                 video_capture = cv2.VideoCapture(stream_url)
-                
                 if not video_capture.isOpened():
-                    st.error(f"Error: Could not open YouTube live stream at {youtube_url}.")
+                    st.error(f"Error: Could not open YouTube video at {youtube_url}.")
                     return
                 
-                frame_count = 0  # Initialize frame count
+                frame_count = 0
 
                 while video_capture.isOpened() and not stop_event.is_set():
                     ret, frame = video_capture.read()
-                    frame = cv2.resize(frame, (320, 240))
+                    frame = cv2.resize(frame, (640, 280))
 
                     if prev_frame is None:
                         prev_frame = frame
@@ -374,37 +381,62 @@ elif video_option == "Youtube Streaming":
                             # Append prediction results to JSON responses
                             json_responses.append(json_format.MessageToJson(prediction_response))
 
-                        # Convert the frame from BGR to RGB (for displaying in Streamlit)
+                        # Convert the frame from BGR to RGB for displaying
                         rgb_frame = cv2.cvtColor(processed_frame, cv2.COLOR_BGR2RGB)
 
                         # Add the frame to the buffer
-                        video_buffer.append(rgb_frame)
+                        video_buffers[index].append(rgb_frame)
 
                     frame_count += 1
                     prev_frame = frame
 
                 video_capture.release()
 
-            # Start the thread for processing the YouTube live video
-            thread = threading.Thread(target=process_youtube_video, args=(youtube_url, selected_model, stop_event))
-            thread.start()
+            # Start threads for each YouTube URL with their corresponding model option
+            for index, (youtube_url, model_option) in enumerate(zip(url_list, model_options)):
+                thread = threading.Thread(target=process_youtube_video, args=(youtube_url, index, model_option, stop_event))
+                thread.start()
+                threads.append(thread)
 
-            # Monitor thread and update the displayed frames
-            while thread.is_alive():
-                if len(video_buffer) > 0:
-                    latest_frame = video_buffer[-1]  # Get the latest frame
-                    frame_placeholder.image(latest_frame, caption="Processed YouTube Video Frame")
+            # Monitor threads and update the grid image
+            while any(thread.is_alive() for thread in threads):
+                grid_frames = []
+
+                for index in range(len(video_buffers)):
+                    if len(video_buffers[index]) > 0:
+                        grid_frames.append(video_buffers[index][-1])  # Append the latest frame
+
+                if grid_frames:
+                    if len(grid_frames) == 1:
+                        grid_image = grid_frames[0]  # Only one frame, show it directly
+                    else:
+                        # Create grid layout (4 frames per row)
+                        if len(grid_frames) % 4 != 0:
+                            blank_frame = np.zeros_like(grid_frames[-1])  # Create a blank frame
+                            while len(grid_frames) % 4 != 0:
+                                grid_frames.append(blank_frame)  # Add blank frames to make it a multiple of 4
+
+                        grid_image = np.concatenate(
+                            [np.concatenate(grid_frames[i:i + 4], axis=1) for i in range(0, len(grid_frames), 4)],
+                            axis=0
+                        )
+
+                    frame_placeholder.image(grid_image, caption="Processed YouTube Video Frames")
 
                 time.sleep(0.01)
 
-            # Ensure the thread finishes
-            thread.join()
+            # Ensure all threads are finished
+            for thread in threads:
+                thread.join()
 
         except Exception as e:
             st.error(e)
-            json_responses.append(f"Error {e} processing YouTube live video")
+            json_responses.append(f"Error {e} processing YouTube video")
 
         st.success(json_responses)
+
+    verify_json_responses()
+
 
 elif video_option == "Streaming Video":
     # Input for streaming video URL
@@ -531,7 +563,7 @@ else:
 
               while video_capture.isOpened() and not stop_event.is_set():
                   ret, frame = video_capture.read()
-                  frame = cv2.resize(frame, (320, 240))
+                  frame = cv2.resize(frame, (640, 280))
                   #previous_response = None
                   if prev_frame is None:
                       prev_frame = frame
