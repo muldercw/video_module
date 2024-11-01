@@ -205,7 +205,7 @@ def redraw_detections(previous_response, frame, model_option, color=(0, 255, 0))
     return _frame, prediction_response
 
 def verify_json_responses():
-    if st.checkbox("Show JSON Results", value=False):
+    if st.checkbox("Show JSON Results", value=True):
         st.subheader("Model Predictions (JSON Responses)")
         for idx, response in enumerate(json_responses):
             st.json(response)
