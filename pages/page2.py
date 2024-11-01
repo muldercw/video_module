@@ -15,16 +15,16 @@ from clarifai.client.app import App
 from clarifai.client.dataset import Dataset
 from clarifai.modules.css import ClarifaiStreamlitCSS
 from google.protobuf import json_format
-from deepface import DeepFace
+#from deepface import DeepFace
 import json
 from google.protobuf import json_format
 
 def recognition_check(frame):
-    known_faces = load_knownfaces()
+    #known_faces = load_knownfaces()
     results = []
-    for face in known_faces:
-        result = DeepFace.verify(frame, face, enforce_detection=False, model_name="VGG-Face")
-        results.append(result)
+    #for face in known_faces:
+        #result = DeepFace.verify(frame, face, enforce_detection=False, model_name="VGG-Face")
+        #results.append(result)
     return results
 
 def list_models():
