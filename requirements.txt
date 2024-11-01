@@ -3,5 +3,5 @@ clarifai==10.5.1
 streamlit==1.24.0
 opencv-python-headless
 numpy
-yt_dlp
 protobuf
+deepface
