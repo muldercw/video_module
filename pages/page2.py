@@ -8,16 +8,24 @@ import subprocess
 from collections import deque
 from clarifai.client.auth import create_stub
 from clarifai.client.auth.helper import ClarifaiAuthHelper
+from clarifai_grpc.grpc.api import resources_pb2, service_pb2
 from clarifai.client.user import User
 from clarifai.client.model import Model
 from clarifai.client.app import App
+from clarifai.client.dataset import Dataset
 from clarifai.modules.css import ClarifaiStreamlitCSS
 from google.protobuf import json_format
-
+from deepface import DeepFace
 import json
 from google.protobuf import json_format
 
-
+def recognition_check(frame):
+    known_faces = load_knownfaces()
+    results = []
+    for face in known_faces:
+        result = DeepFace.verify(frame, face, enforce_detection=False, model_name="VGG-Face")
+        results.append(result)
+    return results
 
 def list_models():
     app_obj = App(user_id=userDataObject.user_id, app_id=userDataObject.app_id)
@@ -37,6 +45,20 @@ def list_community_models():
         {"Name": "Vehicle Detection", "URL": "https://clarifai.com/clarifai/Roundabout-Aerial-Images-for-Vehicles-Det-Kaggle/models/vehicle-detector-alpha-x", "type": "Community"},
     ]
 
+def load_knownfaces():
+    known_faces = []
+    input_obj = User(user_id=userDataObject.user_id).app(app_id=userDataObject.app_id).inputs()
+    all_inputs = input_obj.list_inputs()
+    if all_inputs is None:
+        return []
+    for inp in range(len(all_inputs)):
+        known_faces.append({
+            "id": all_inputs[inp].id,
+            "data_url": all_inputs[inp].data.image.url,
+        })
+    return known_faces
+    
+
 def list_custom_python_models():
     return [
         {"Name": "Movement", "URL": "xx", "type": "Movement"},
@@ -44,7 +66,6 @@ def list_custom_python_models():
     ]
 
 def compensate_camera_motion(prev_frame, current_frame):
-
     gray_prev = cv2.cvtColor(prev_frame, cv2.COLOR_BGR2GRAY)
     gray_current = cv2.cvtColor(current_frame, cv2.COLOR_BGR2GRAY)
     orb = cv2.ORB_create()
@@ -115,69 +136,53 @@ def draw_box_corners(frame, left, top, right, bottom, color, thickness=1, corner
     cv2.line(frame, (right, bottom), (right - corner_length, bottom), color, thickness)  # horizontal
     cv2.line(frame, (right, bottom), (right, bottom - corner_length), color, thickness)  # vertical
 
-def send_detection_to_model(cropped_image, model_url):
-    """
-    Send a cropped bounding box image to a secondary model for further processing.
-    """
+def run_model_inference(det_threshold, background_subtractor, overlay, overlay_counter, prev_frame, frame, model_option, color=(0, 255, 0)):
     try:
-        image_bytes = cv2.imencode('.jpg', cropped_image)[1].tobytes()
-        secondary_model = Model(url=model_url)
-        secondary_response = secondary_model.predict_by_bytes(image_bytes, input_type="image")
-        return secondary_response
-    except Exception as e:
-        st.error(f"Error in secondary model processing: {e}")
-        return None
+      if model_option['type'] == "Disabled":
+          _disabled_frame = frame.copy()
+          cv2.putText(_disabled_frame, "Detections Disabled", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+          return overlay, overlay_counter, _disabled_frame, None
+      elif model_option['type'] == "Movement":
+          return movement_detection(overlay, overlay_counter, background_subtractor, frame, threshold=25)
+      else:
+        similarity = model_option['Name'] == "Face Detection"
+        _frame = frame.copy()
+        frame_bytes = cv2.imencode('.jpg', frame)[1].tobytes()
+        model_url = model_option['URL']
+        detector_model = Model(url=model_url)
+        cv2.putText(_frame, model_option['Name'], (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2, cv2.LINE_AA)
+        prediction_response = detector_model.predict_by_bytes(frame_bytes, input_type="image")
+        regions = prediction_response.outputs[0].data.regions
 
-
-def run_model_inference(det_threshold, background_subtractor, overlay, overlay_counter, prev_frame, frame, model_option, color=(0, 255, 0), secondary_model_url=None):
-    """
-    Run inference on the frame with the primary model and send each detection to a secondary model if specified.
-    """
-    try:
-        if model_option['type'] == "Disabled":
-            _disabled_frame = frame.copy()
-            cv2.putText(_disabled_frame, "Detections Disabled", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
-            return overlay, overlay_counter, _disabled_frame, None
-        elif model_option['type'] == "Movement":
-            return movement_detection(overlay, overlay_counter, background_subtractor, frame, threshold=25)
-        else:
-            _frame = frame.copy()
-            frame_bytes = cv2.imencode('.jpg', frame)[1].tobytes()
-            model_url = model_option['URL']
-            detector_model = Model(url=model_url)
-            cv2.putText(_frame, model_option['Name'], (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2, cv2.LINE_AA)
-            prediction_response = detector_model.predict_by_bytes(frame_bytes, input_type="image")
-            json_responses.append(json_format.MessageToJson(prediction_response))
-            regions = prediction_response.outputs[0].data.regions
-            for region in regions:
-                top_row = round(region.region_info.bounding_box.top_row, 3)
-                left_col = round(region.region_info.bounding_box.left_col, 3)
-                bottom_row = round(region.region_info.bounding_box.bottom_row, 3)
-                right_col = round(region.region_info.bounding_box.right_col, 3)
-                left = int(left_col * frame.shape[1])
-                top = int(top_row * frame.shape[0])
-                right = int(right_col * frame.shape[1])
-                bottom = int(bottom_row * frame.shape[0])
+        for region in regions:
+            top_row = round(region.region_info.bounding_box.top_row, 3)
+            left_col = round(region.region_info.bounding_box.left_col, 3)
+            bottom_row = round(region.region_info.bounding_box.bottom_row, 3)
+            right_col = round(region.region_info.bounding_box.right_col, 3)
+            left = int(left_col * frame.shape[1])
+            top = int(top_row * frame.shape[0])
+            right = int(right_col * frame.shape[1])
+            bottom = int(bottom_row * frame.shape[0])
+            for concept in region.data.concepts:
+                name = concept.name
+                value = round(concept.value, 4)
+                if value < det_threshold:
+                    continue
+                text_position = (left + (right - left) // 4, top - 10)
+                cv2.putText(_frame, f"{name}:{value}", text_position, cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2, cv2.LINE_AA)
                 draw_box_corners(_frame, left, top, right, bottom, color)
-                if secondary_model_url:
-                    cropped_image = frame[top:bottom, left:right]
-                    secondary_response = send_detection_to_model(cropped_image, secondary_model_url)
-                    if secondary_response:
-                        st.write("Secondary Model Response:", secondary_response)
+                cropped_frame = frame[top:bottom, left:right]
+                if similarity and cropped_frame.size > 0:
+                    results = recognition_check(cropped_frame)
+                    for result in results:
+                        if result["verified"] == True:
+                            cv2.putText(_frame, "Face Detected", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
 
-                for concept in region.data.concepts:
-                    name = concept.name
-                    value = round(concept.value, 4)
-                    if value < det_threshold:
-                        continue
-                    text_position = (left + (right - left) // 4, top - 10)
-                    cv2.putText(_frame, f"{name}:{value}", text_position, cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2, cv2.LINE_AA)
-
-            return overlay, overlay_counter, _frame, prediction_response
+        return overlay, overlay_counter, _frame, prediction_response
     except Exception as e:
-        st.error(f"Error in primary model inference: {e}")
-        return overlay, overlay_counter, frame, None
-
+      st.success(e)
+      cv2.putText(frame, f"{e}", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 1, cv2.LINE_AA)
+      return overlay, overlay_counter, frame, None
 
 def redraw_detections(previous_response, frame, model_option, color=(0, 255, 0)):
     if model_option['type'] == "disabled":
@@ -205,7 +210,7 @@ def redraw_detections(previous_response, frame, model_option, color=(0, 255, 0))
     return _frame, prediction_response
 
 def verify_json_responses():
-    if st.checkbox("Show JSON Results", value=True):
+    if st.checkbox("Show JSON Results", value=False):
         st.subheader("Model Predictions (JSON Responses)")
         for idx, response in enumerate(json_responses):
             st.json(response)
@@ -308,5 +313,3 @@ else:
           json_responses.append(f"Error {e} processing video at {video_url}")
         st.success(json_responses)
     verify_json_responses()
-
-  
