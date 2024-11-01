@@ -200,7 +200,7 @@ st.title("Video Processing & Monitoring")
 json_responses = []
 
 st.subheader("Video Frame Processing")
-video_option = st.radio("Choose Video Input:", ("Standard Video File URLs","Streaming Video", "Webcam", "Youtube Streaming[beta]"), horizontal=True) #, "Webcam", "Streaming Video URLs"
+video_option = st.radio("Choose Video Input:", ("Standard Video File URLs", "Webcam"), horizontal=True) #, "Webcam", "Streaming Video URLs"
 
 if video_option == "Webcam":
     st.info("Note: The webcam feature may not work on all devices.")
