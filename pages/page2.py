@@ -147,6 +147,7 @@ def run_model_inference(det_threshold, background_subtractor, overlay, overlay_c
             detector_model = Model(url=model_url)
             cv2.putText(_frame, model_option['Name'], (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2, cv2.LINE_AA)
             prediction_response = detector_model.predict_by_bytes(frame_bytes, input_type="image")
+            json_responses.append(json_format.MessageToJson(prediction_response))
             regions = prediction_response.outputs[0].data.regions
             for region in regions:
                 top_row = round(region.region_info.bounding_box.top_row, 3)
